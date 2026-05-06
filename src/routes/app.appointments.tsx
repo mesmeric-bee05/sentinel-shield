@@ -71,7 +71,7 @@ function Section({ title, items, cancel }: { title: string; items: Appt[]; cance
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground">{a.status}</span>
-                {a.channel === "telemedicine" && a.status !== "cancelled" && <Button size="sm" variant="outline"><Video className="w-3.5 h-3.5 mr-1.5" />Join</Button>}
+                {a.channel === "telemedicine" && a.status !== "cancelled" && <Button asChild size="sm" variant="outline"><Link to="/app/room/$appointmentId" params={{ appointmentId: a.id }}><Video className="w-3.5 h-3.5 mr-1.5" />Join</Link></Button>}
                 {cancel && <Button size="sm" variant="ghost" onClick={() => cancel(a.id)}><X className="w-3.5 h-3.5" /></Button>}
               </div>
             </li>
