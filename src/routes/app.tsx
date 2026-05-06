@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Activity, Calendar, LayoutDashboard, LogOut, Search, ShieldCheck, Stethoscope, Users, Video } from "lucide-react";
+import { Activity, Calendar, FileSearch, LayoutDashboard, LogOut, Search, ShieldCheck, Stethoscope, UserCog, Users, Video } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
