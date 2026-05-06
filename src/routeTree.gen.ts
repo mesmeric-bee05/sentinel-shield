@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppProviderRouteImport } from './routes/app.provider'
 import { Route as AppDiscoverRouteImport } from './routes/app.discover'
+import { Route as AppBootstrapRouteImport } from './routes/app.bootstrap'
 import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
 import { Route as AppAdminRouteImport } from './routes/app.admin'
 import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
@@ -80,6 +81,11 @@ const AppDiscoverRoute = AppDiscoverRouteImport.update({
   path: '/discover',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBootstrapRoute = AppBootstrapRouteImport.update({
+  id: '/bootstrap',
+  path: '/bootstrap',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAppointmentsRoute = AppAppointmentsRouteImport.update({
   id: '/appointments',
   path: '/appointments',
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
+  '/app/bootstrap': typeof AppBootstrapRoute
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
+  '/app/bootstrap': typeof AppBootstrapRoute
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app': typeof AppIndexRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
+  '/app/bootstrap': typeof AppBootstrapRoute
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
@@ -165,6 +174,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/admin'
     | '/app/appointments'
+    | '/app/bootstrap'
     | '/app/discover'
     | '/app/provider'
     | '/app/'
@@ -181,6 +191,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/admin'
     | '/app/appointments'
+    | '/app/bootstrap'
     | '/app/discover'
     | '/app/provider'
     | '/app'
@@ -198,6 +209,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/admin'
     | '/app/appointments'
+    | '/app/bootstrap'
     | '/app/discover'
     | '/app/provider'
     | '/app/'
@@ -295,6 +307,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDiscoverRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/bootstrap': {
+      id: '/app/bootstrap'
+      path: '/bootstrap'
+      fullPath: '/app/bootstrap'
+      preLoaderRoute: typeof AppBootstrapRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/appointments': {
       id: '/app/appointments'
       path: '/appointments'
@@ -343,6 +362,7 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppAppointmentsRoute: typeof AppAppointmentsRoute
+  AppBootstrapRoute: typeof AppBootstrapRoute
   AppDiscoverRoute: typeof AppDiscoverRoute
   AppProviderRoute: typeof AppProviderRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -351,6 +371,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
   AppAppointmentsRoute: AppAppointmentsRoute,
+  AppBootstrapRoute: AppBootstrapRoute,
   AppDiscoverRoute: AppDiscoverRoute,
   AppProviderRoute: AppProviderRoute,
   AppIndexRoute: AppIndexRoute,
