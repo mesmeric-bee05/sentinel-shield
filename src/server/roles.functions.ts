@@ -52,10 +52,8 @@ export const grantRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) return { ok: false, error: "Forbidden" };
-    // Use admin client; call SECURITY DEFINER fn impersonating via header so auth.uid() resolves to the caller.
-    const { error } = await supabaseAdmin.rpc("grant_role" as never, { _target: data.userId, _role: data.role } as never);
+    const { error } = await supabaseAdmin.from("user_roles").upsert({ user_id: data.userId, role: data.role }, { onConflict: "user_id,role" });
     if (error) return { ok: false, error: error.message };
-    // Manually log audit since auth.uid() is null when called via service role
     await supabaseAdmin.from("audit_events").insert({ actor_id: context.userId, action: "role.grant", entity: "user_roles", entity_id: data.userId, meta: { role: data.role, via: "admin_console" } });
     return { ok: true, error: null };
   });
