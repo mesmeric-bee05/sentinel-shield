@@ -216,6 +216,39 @@ export type Database = {
         }
         Relationships: []
       }
+      role_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          justification: string | null
+          requested_role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["role_request_status"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          justification?: string | null
+          requested_role: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["role_request_status"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          justification?: string | null
+          requested_role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["role_request_status"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -242,10 +275,39 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_count: { Args: never; Returns: number }
+      bootstrap_first_admin: { Args: { _user_id: string }; Returns: boolean }
+      decide_role_request: {
+        Args: { _approve: boolean; _request_id: string }
+        Returns: boolean
+      }
+      grant_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _target: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
+        }
+        Returns: boolean
+      }
+      log_audit: {
+        Args: {
+          _action: string
+          _entity: string
+          _entity_id: string
+          _meta: Json
+        }
+        Returns: string
+      }
+      revoke_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _target: string
         }
         Returns: boolean
       }
@@ -260,6 +322,7 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_show"
+      role_request_status: "pending" | "approved" | "denied"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -397,6 +460,7 @@ export const Constants = {
         "cancelled",
         "no_show",
       ],
+      role_request_status: ["pending", "approved", "denied"],
     },
   },
 } as const
