@@ -22,6 +22,7 @@ import { Route as AppProviderRouteImport } from './routes/app.provider'
 import { Route as AppDiscoverRouteImport } from './routes/app.discover'
 import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
 import { Route as AppAdminRouteImport } from './routes/app.admin'
+import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
 import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
 
 const SignupRoute = SignupRouteImport.update({
@@ -89,6 +90,11 @@ const AppAdminRoute = AppAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminRolesRoute = AppAdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/roles': typeof AppAdminRolesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/app/provider': typeof AppProviderRoute
   '/app': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/roles': typeof AppAdminRolesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/roles': typeof AppAdminRolesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/app/provider'
     | '/app/'
     | '/app/admin/audit'
+    | '/app/admin/roles'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
     | '/app/provider'
     | '/app'
     | '/app/admin/audit'
+    | '/app/admin/roles'
   id:
     | '__root__'
     | '/'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/app/provider'
     | '/app/'
     | '/app/admin/audit'
+    | '/app/admin/roles'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -297,6 +309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/admin/roles': {
+      id: '/app/admin/roles'
+      path: '/roles'
+      fullPath: '/app/admin/roles'
+      preLoaderRoute: typeof AppAdminRolesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/audit': {
       id: '/app/admin/audit'
       path: '/audit'
@@ -309,10 +328,12 @@ declare module '@tanstack/react-router' {
 
 interface AppAdminRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
+  AppAdminRolesRoute: typeof AppAdminRolesRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
+  AppAdminRolesRoute: AppAdminRolesRoute,
 }
 
 const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
@@ -350,3 +371,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
