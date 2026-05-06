@@ -32,6 +32,8 @@ function AppShell() {
     { to: "/app/appointments", label: "Appointments", icon: Calendar, show: true },
     { to: "/app/provider", label: "Clinician", icon: Stethoscope, show: isProvider },
     { to: "/app/admin", label: "Operations", icon: Users, show: isAdmin },
+    { to: "/app/admin/audit", label: "Audit log", icon: FileSearch, show: isAdmin },
+    { to: "/app/admin/roles", label: "Roles", icon: UserCog, show: isAdmin },
   ].filter((n) => n.show !== false);
 
   return (
