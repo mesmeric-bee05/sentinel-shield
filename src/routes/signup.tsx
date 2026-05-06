@@ -43,16 +43,8 @@ function SignupPage() {
   };
 
   const google = async () => {
-    try {
-      const { lovable } = await import("@/integrations/lovable/index").catch(() => ({ lovable: null as unknown as { auth: { signInWithOAuth: (p: string, o: { redirect_uri: string }) => Promise<{ error?: unknown; redirected?: boolean }> } } }));
-      if (!lovable) {
-        const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
-        if (error) toast.error(error.message);
-        return;
-      }
-      const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-      if (r.error) toast.error("Google sign-in failed");
-    } catch { toast.error("Google sign-in unavailable"); }
+    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
+    if (error) toast.error(error.message);
   };
 
   return <AuthShell title="Create your account" sub="Free to start. No credit card required.">
