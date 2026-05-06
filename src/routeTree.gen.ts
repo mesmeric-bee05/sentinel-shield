@@ -20,8 +20,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppProviderRouteImport } from './routes/app.provider'
 import { Route as AppDiscoverRouteImport } from './routes/app.discover'
+import { Route as AppBootstrapRouteImport } from './routes/app.bootstrap'
 import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
 import { Route as AppAdminRouteImport } from './routes/app.admin'
+import { Route as AppRoomAppointmentIdRouteImport } from './routes/app.room.$appointmentId'
+import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
+import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -78,6 +82,11 @@ const AppDiscoverRoute = AppDiscoverRouteImport.update({
   path: '/discover',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBootstrapRoute = AppBootstrapRouteImport.update({
+  id: '/bootstrap',
+  path: '/bootstrap',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAppointmentsRoute = AppAppointmentsRouteImport.update({
   id: '/appointments',
   path: '/appointments',
@@ -87,6 +96,21 @@ const AppAdminRoute = AppAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => AppRoute,
+} as any)
+const AppRoomAppointmentIdRoute = AppRoomAppointmentIdRouteImport.update({
+  id: '/room/$appointmentId',
+  path: '/room/$appointmentId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRolesRoute = AppAdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -98,11 +122,15 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/security': typeof SecurityRoute
   '/signup': typeof SignupRoute
-  '/app/admin': typeof AppAdminRoute
+  '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
+  '/app/bootstrap': typeof AppBootstrapRoute
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
+  '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/roles': typeof AppAdminRolesRoute
+  '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -112,11 +140,15 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/security': typeof SecurityRoute
   '/signup': typeof SignupRoute
-  '/app/admin': typeof AppAdminRoute
+  '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
+  '/app/bootstrap': typeof AppBootstrapRoute
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app': typeof AppIndexRoute
+  '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/roles': typeof AppAdminRolesRoute
+  '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -128,11 +160,15 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/security': typeof SecurityRoute
   '/signup': typeof SignupRoute
-  '/app/admin': typeof AppAdminRoute
+  '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
+  '/app/bootstrap': typeof AppBootstrapRoute
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
+  '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/roles': typeof AppAdminRolesRoute
+  '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,9 +183,13 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/admin'
     | '/app/appointments'
+    | '/app/bootstrap'
     | '/app/discover'
     | '/app/provider'
     | '/app/'
+    | '/app/admin/audit'
+    | '/app/admin/roles'
+    | '/app/room/$appointmentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -161,9 +201,13 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/admin'
     | '/app/appointments'
+    | '/app/bootstrap'
     | '/app/discover'
     | '/app/provider'
     | '/app'
+    | '/app/admin/audit'
+    | '/app/admin/roles'
+    | '/app/room/$appointmentId'
   id:
     | '__root__'
     | '/'
@@ -176,9 +220,13 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/admin'
     | '/app/appointments'
+    | '/app/bootstrap'
     | '/app/discover'
     | '/app/provider'
     | '/app/'
+    | '/app/admin/audit'
+    | '/app/admin/roles'
+    | '/app/room/$appointmentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -271,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDiscoverRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/bootstrap': {
+      id: '/app/bootstrap'
+      path: '/bootstrap'
+      fullPath: '/app/bootstrap'
+      preLoaderRoute: typeof AppBootstrapRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/appointments': {
       id: '/app/appointments'
       path: '/appointments'
@@ -285,23 +340,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/room/$appointmentId': {
+      id: '/app/room/$appointmentId'
+      path: '/room/$appointmentId'
+      fullPath: '/app/room/$appointmentId'
+      preLoaderRoute: typeof AppRoomAppointmentIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/admin/roles': {
+      id: '/app/admin/roles'
+      path: '/roles'
+      fullPath: '/app/admin/roles'
+      preLoaderRoute: typeof AppAdminRolesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/audit': {
+      id: '/app/admin/audit'
+      path: '/audit'
+      fullPath: '/app/admin/audit'
+      preLoaderRoute: typeof AppAdminAuditRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
   }
 }
 
+interface AppAdminRouteChildren {
+  AppAdminAuditRoute: typeof AppAdminAuditRoute
+  AppAdminRolesRoute: typeof AppAdminRolesRoute
+}
+
+const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminAuditRoute: AppAdminAuditRoute,
+  AppAdminRolesRoute: AppAdminRolesRoute,
+}
+
+const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
+  AppAdminRouteChildren,
+)
+
 interface AppRouteChildren {
-  AppAdminRoute: typeof AppAdminRoute
+  AppAdminRoute: typeof AppAdminRouteWithChildren
   AppAppointmentsRoute: typeof AppAppointmentsRoute
+  AppBootstrapRoute: typeof AppBootstrapRoute
   AppDiscoverRoute: typeof AppDiscoverRoute
   AppProviderRoute: typeof AppProviderRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppRoomAppointmentIdRoute: typeof AppRoomAppointmentIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAdminRoute: AppAdminRoute,
+  AppAdminRoute: AppAdminRouteWithChildren,
   AppAppointmentsRoute: AppAppointmentsRoute,
+  AppBootstrapRoute: AppBootstrapRoute,
   AppDiscoverRoute: AppDiscoverRoute,
   AppProviderRoute: AppProviderRoute,
   AppIndexRoute: AppIndexRoute,
+  AppRoomAppointmentIdRoute: AppRoomAppointmentIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

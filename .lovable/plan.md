@@ -1,162 +1,89 @@
+# ApexCare AI — Phase 2 Build Plan
 
-# ApexCare AI — Phase 1 Build Plan
-
-A category-defining product can't be built in a single pass. This plan delivers a **production-grade Phase 1 foundation** that establishes brand, security posture, data model, and the four pillars you selected — then leaves clean seams for Phase 2 (real WebRTC, ambient scribe, voice/WhatsApp agent, blockchain audit, predictive ML).
-
----
-
-## Design Direction — "Clinical Trust"
-
-- **Palette:** Deep medical navy `#0A1628` / `#0F2847`, crisp white surfaces, electric cyan `#22D3EE` AI accent, supportive emerald for "healthy" states, amber/red for risk.
-- **Typography:** Inter (UI) + Instrument Serif accents for hero moments — calm, clinical, premium.
-- **Motion:** Subtle parallax on marketing, soft data-viz transitions, AI "shimmer" on suggestion chips.
-- **Tone:** Hospital-grade trust + Apple-grade polish. Generous whitespace, precise grids, quiet luxury.
+Four cohesive workstreams that extend the Phase 1 foundation. Each ships its own route, server functions where required, RLS-safe data flow, and matches the Clinical Trust visual system.
 
 ---
 
-## Architecture Overview
+## 1. Patient booking — confirmation + calendar integration
 
-```text
-                ┌─────────────────────────────────┐
-                │   Public Marketing + Booking     │  (anyone)
-                └────────────────┬────────────────┘
-                                 │
-                ┌────────────────┴────────────────┐
-                │       Lovable Cloud Auth         │  email + Google
-                │     + user_roles (RLS)           │
-                └────┬──────────────┬──────────┬──┘
-                     │              │          │
-              /patient/*      /provider/*   /admin/*
-              Patient Portal   Clinician     Ops Console
-                               Workspace
-                     │              │          │
-                ┌────┴──────────────┴──────────┴────┐
-                │   Postgres (RLS) + Server Funcs    │
-                │   AI Gateway (Lovable AI)          │
-                └────────────────────────────────────┘
-```
+**Goal:** turn AI slot suggestions into a guided 3-step flow with a real confirmation screen and downloadable calendar invite.
 
----
+Changes:
+- Refactor `src/routes/app.discover.tsx` to drive a `BookingDialog` (new `src/components/booking/BookingDialog.tsx`) instead of inline `book()`.
+- Steps: **Choose slot → Review (provider, time, channel, reason, AI summary) → Confirm**. Uses `summarizeIntake` server fn for the AI summary shown on review.
+- On confirm: insert appointment, log to `audit_events` via a new `logAudit` server fn (admin client, action `appointment.created`), then show success state.
+- Success state offers: **Add to calendar (.ics download)**, **Copy details**, **Go to Appointments**. ICS generated client-side (no dep) with proper VEVENT, UID, organizer, telemedicine join URL placeholder.
+- Bookings made from AI suggestions store the chosen `Slot.reason` into `appointments.ai_summary`.
+- Fix current bug: AI "Book" button always books with `filtered[0]` — replace with explicit provider picker tied to the slot.
 
-## Phase 1 Deliverables
+## 2. Audit log viewer (admin)
 
-### 1. Marketing + Identity (`/`)
-- Hero with the AHOS positioning, animated gradient, trust badges (HIPAA-ready, SOC2-track, Zero Trust).
-- Sections: Problem → Platform pillars → How AI scheduling works → Security model → Personas → CTA.
-- Separate routes: `/about`, `/security`, `/for-providers`, `/contact`, each with proper SEO `head()`.
+**Goal:** secure, filterable, exportable view of `audit_events`.
 
-### 2. Authentication & Roles
-- Email/password + Google sign-in via Lovable Cloud.
-- `app_role` enum: `patient | provider | admin` in a separate `user_roles` table with `has_role()` security-definer function (no role-on-profile anti-pattern).
-- `profiles` table auto-created via trigger on signup; role chosen at onboarding (admin role gated — assigned manually or first-user bootstrap).
-- `_authenticated` layout route with `beforeLoad` redirect; role-specific layouts `_patient`, `_provider`, `_admin`.
+New route `src/routes/app.admin.audit.tsx` (linked from Operations sidebar, admin-gated via `roles.includes("admin")` + `beforeLoad` redirect for non-admins).
 
-### 3. Patient Portal (`/patient/*`)
-- **Discover & Book:** Searchable provider directory (specialty, location, insurance, availability) with filter chips and AI "best match" ranking.
-- **AI-Assisted Scheduling:** Natural-language box ("I need a dermatologist next week, mornings only") → Lovable AI proposes 3 ranked slots with reasoning.
-- **Booking flow:** Slot pick → reason for visit → confirm → confirmation screen with calendar add.
-- **My Appointments:** Upcoming/past, join telemedicine, cancel/reschedule.
-- **Profile & insurance** basics.
+Features:
+- Server-side query with filters: date range (shadcn Calendar popovers), entity (select), action (select), actor email (text search joined to `profiles`).
+- Paginated table (50/page) using shadcn `Table`. Columns: timestamp, actor (email + short id), entity, entity_id, action, meta (expandable JSON popover).
+- **Export CSV** of current filter result (client-side Blob download, capped at 5,000 rows server-side).
+- All queries via a `listAuditEvents` server fn using `requireSupabaseAuth` middleware so RLS (`admins view audit`) enforces access. No service role.
+- Adds an admin self-audit entry on export (`audit.exported`).
 
-### 4. Provider Workspace (`/provider/*`)
-- **Today dashboard:** Next patient card, day timeline, no-show risk badges (heuristic v1: history + lead time + channel), quick actions.
-- **Schedule:** Week calendar with drag-to-block availability; appointment detail drawer.
-- **Patient queue:** Waiting / in-room / completed lanes.
-- **Patient context panel:** Demographics, prior visits, AI-summarized notes (stub).
+## 3. Admin role-bootstrap + role management
 
-### 5. Admin Operations Console (`/admin/*`)
-- KPI strip: bookings today, utilization %, no-show rate, avg wait, revenue proxy.
-- Charts (Recharts): bookings trend, capacity heatmap by hour×day, no-show risk distribution, top specialties.
-- Provider roster management, role assignment, audit log viewer.
+**Goal:** safe path from zero admins → first super-admin → ongoing role grants, without ever exposing role mutation to clients.
 
-### 6. Telemedicine Room Shell (`/consult/$appointmentId`)
-- Pre-call device check UI, in-call layout (local + remote video tiles, mute/cam/share/end), side panel with **AI Scribe (stub)** that streams placeholder transcript + structured SOAP note skeleton via Lovable AI on demand.
-- WebRTC wired with `getUserMedia` for self-preview; full peer signaling marked as Phase 2.
+Schema migration:
+- New table `role_requests` (id, user_id, requested_role, justification, status enum `pending|approved|denied`, decided_by, decided_at, created_at). RLS: users insert/select their own; admins select/update all.
+- New enum value or use existing `app_role`. Add unique partial index to prevent duplicate pending requests.
+- New SQL function `bootstrap_first_admin(_user_id uuid)` SECURITY DEFINER: grants `admin` role **only if zero admins currently exist**. Idempotent and safe.
+- New SQL function `grant_role(_target uuid, _role app_role)` SECURITY DEFINER, checks caller `has_role('admin')` before inserting into `user_roles`. Logs to `audit_events`.
 
-### 7. Security Posture (built-in, not bolted-on)
-- RLS on every table; policies via `has_role()`.
-- Server functions for all writes via `requireSupabaseAuth`; admin client only in trusted server paths.
-- Zod validation on every server function input (length caps, formats).
-- HIBP leaked-password protection enabled.
-- Audit log table (`audit_events`) — every booking/role change inserted server-side; admin viewer included. (Hash-chain "blockchain-style" integrity is Phase 2.)
-- Security memory document seeded.
+Server functions (`src/server/roles.functions.ts`):
+- `requestRole({ role, justification })` — patient-callable, inserts into `role_requests`.
+- `bootstrapFirstAdmin()` — calls SQL fn; only succeeds when no admin exists. Exposed once on a new `/app/bootstrap` route shown only when the current user has no roles and the system has no admins (cheap check via server fn).
+- `decideRoleRequest({ id, approve })` — admin-only, updates request and (on approve) calls `grant_role`.
+- `revokeRole({ userId, role })` — admin-only.
+
+UI:
+- `src/routes/app.admin.roles.tsx` — pending requests queue, approve/deny, plus "Manage users" panel with search → assign/revoke `provider`/`admin`. All actions call server fns; no direct client `user_roles` writes.
+- Patient-side: small "Apply to be a provider" entry on `/app/index` opening a request dialog.
+- `src/routes/app.bootstrap.tsx` — one-time setup screen visible only when system has no admins.
+
+Security guardrails:
+- Client never inserts/updates `user_roles` directly. RLS already restricts this — we only add the server-fn UX.
+- Every grant/revoke writes an `audit_events` row.
+
+## 4. Telemedicine room shell + AI scribe placeholder
+
+**Goal:** production-feeling consult room UI; real getUserMedia local preview; AI scribe stub wired to existing `scribeDraft`. Full WebRTC signaling stays Phase 3.
+
+New route `src/routes/app.room.$appointmentId.tsx`:
+- Loads appointment via server fn (`requireSupabaseAuth`); 404 if user is not patient or assigned provider.
+- Layout: dark theme room, big remote-video tile (placeholder gradient + "Waiting for participant…"), local self-view PiP using `navigator.mediaDevices.getUserMedia({ video, audio })`, controls bar (mute, camera, screen share stub, end call).
+- Pre-call device check modal with mic/camera permission states and device pickers.
+- Right rail "AI Scribe" panel:
+  - Live transcript area populated by Web Speech API (`SpeechRecognition`) when available; manual textarea fallback.
+  - Buttons: **Generate SOAP draft** (calls `scribeDraft`), **Save to appointment** (writes draft into `appointments.ai_summary`), **Copy**.
+  - Clear "Stub" badge — labeled as draft assistance, not medical record.
+- "Join" buttons in `app.appointments.tsx` and provider dashboard now route to `/app/room/$appointmentId`.
+- Audit entries on room enter/leave and on scribe save.
 
 ---
 
-## Data Model (Phase 1)
+## Technical notes
 
-```text
-profiles(id PK→auth.users, full_name, dob, phone, avatar_url, ...)
-user_roles(id, user_id, role app_role)             -- RLS, has_role()
-providers(id, user_id, specialty, bio, photo, rating, location, ...)
-provider_availability(id, provider_id, weekday, start, end)
-appointments(id, patient_id, provider_id, starts_at, ends_at,
-             status, reason, channel, no_show_risk numeric)
-audit_events(id, actor_id, action, entity, entity_id, meta jsonb, created_at)
-```
+- New files: `src/components/booking/BookingDialog.tsx`, `src/lib/ics.ts`, `src/server/audit.functions.ts`, `src/server/roles.functions.ts`, `src/server/appointments.functions.ts`, `src/server/telemedicine.functions.ts`, route files listed above.
+- One migration: `role_requests` table + RLS + `bootstrap_first_admin` + `grant_role` + audit triggers.
+- All server fns use `requireSupabaseAuth` middleware so RLS applies; only `bootstrap_first_admin` and `grant_role` rely on SECURITY DEFINER with explicit guards.
+- No new npm deps. ICS and CSV are hand-rolled. Speech recognition is browser-native with graceful fallback.
+- Sidebar gains "Operations → Audit log", "Operations → Roles" (admin only).
 
-RLS summary:
-- patients: read/write own profile + own appointments
-- providers: read assigned appointments, manage own availability
-- admins: full read; writes via server functions only
+## Out of scope (Phase 3)
 
----
+- Real WebRTC peer signaling (TURN/STUN, SDP exchange).
+- Continuous ambient scribing with diarization.
+- Blockchain-style hash-chain over `audit_events`.
+- SSO/SAML and step-up MFA for admin actions.
 
-## Routes (TanStack Start, file-based)
-
-```text
-src/routes/
-  __root.tsx
-  index.tsx                  /
-  about.tsx, security.tsx, for-providers.tsx, contact.tsx
-  login.tsx, signup.tsx, onboarding.tsx
-  _authenticated.tsx                             (auth gate)
-    _authenticated/_patient.tsx                  (role gate + shell)
-      _authenticated/_patient/dashboard.tsx
-      _authenticated/_patient/discover.tsx
-      _authenticated/_patient/book.$providerId.tsx
-      _authenticated/_patient/appointments.tsx
-      _authenticated/_patient/profile.tsx
-    _authenticated/_provider.tsx
-      _authenticated/_provider/today.tsx
-      _authenticated/_provider/schedule.tsx
-      _authenticated/_provider/queue.tsx
-      _authenticated/_provider/patients.tsx
-    _authenticated/_admin.tsx
-      _authenticated/_admin/overview.tsx
-      _authenticated/_admin/providers.tsx
-      _authenticated/_admin/audit.tsx
-    _authenticated/consult.$appointmentId.tsx
-```
-
----
-
-## AI (Lovable AI Gateway, default `google/gemini-3-flash-preview`)
-
-- `suggestSlots` server fn — structured tool-call output ranking 3 slots with reasoning.
-- `summarizeIntake` — turns patient's free-text reason into a short clinical summary for the provider card.
-- `scribeDraft` — generates SOAP-format note skeleton from a placeholder transcript in the consult room.
-
-All prompts live server-side; 402/429 errors surfaced as toasts.
-
----
-
-## Explicitly Out of Scope (Phase 2+)
-
-To set expectations honestly: full WebRTC peer signaling + TURN, ambient real-time scribe, voice/WhatsApp omnichannel agent, true ML no-show model (we ship a transparent heuristic with a clean swap point), blockchain hash-chain audit, WebAuthn/biometrics, PWA offline sync, EHR/FHIR integrations, payments. The architecture, data model, and UI surfaces are designed so each can drop in without rework.
-
----
-
-## Build Order
-
-1. Design tokens (HSL) + base layout primitives.
-2. Database schema + RLS + roles + triggers.
-3. Auth (email + Google) + onboarding + role-gated layouts.
-4. Marketing site (index + sub-routes) with hero, sections, SEO.
-5. Patient portal end-to-end (discover → AI suggest → book → confirm → list).
-6. Provider workspace (today + schedule + queue + patient panel).
-7. Admin console (KPIs + charts + audit + provider mgmt).
-8. Telemedicine room shell + AI scribe stub.
-9. Security pass (RLS audit, HIBP, security memory, scan).
-
-Approve this and I'll start building.
+Approve to proceed with implementation.

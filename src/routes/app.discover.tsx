@@ -3,29 +3,29 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, MapPin, Search, Sparkles, Star, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "./app";
 import { suggestSlots } from "@/server/ai.functions";
+import { BookingDialog, type BookingProvider, type BookingSlot } from "@/components/booking/BookingDialog";
 
 export const Route = createFileRoute("/app/discover")({
   head: () => ({ meta: [{ title: "Find care — ApexCare AI" }] }),
   component: Discover,
 });
 
-type Provider = { id: string; display_name: string; specialty: string; bio: string | null; location: string | null; rating: number | null; photo_url: string | null; telemedicine_enabled: boolean };
+type Provider = BookingProvider & { bio: string | null; rating: number | null; photo_url: string | null };
 type Slot = { label: string; iso: string; reason: string; score: number };
 
 function Discover() {
-  const { user } = useAuth();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [q, setQ] = useState("");
   const [aiQuery, setAiQuery] = useState("");
   const [slots, setSlots] = useState<Slot[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
-  const [bookingFor, setBookingFor] = useState<{ p: Provider; s: Slot } | null>(null);
+  const [bookingState, setBookingState] = useState<{ provider: Provider; slot: BookingSlot; reason: string } | null>(null);
+  const [pickerFor, setPickerFor] = useState<Slot | null>(null);
 
   useEffect(() => {
     supabase.from("providers").select("*").eq("is_active", true).then(({ data }) => setProviders((data ?? []) as Provider[]));
@@ -45,23 +45,9 @@ function Discover() {
     setSlots(r.slots as Slot[]);
   };
 
-  const book = async (p: Provider, s: Slot) => {
-    if (!user) return;
-    setBookingFor({ p, s });
-    const start = new Date(s.iso);
-    const end = new Date(start.getTime() + 30 * 60_000);
-    const { error } = await supabase.from("appointments").insert({
-      patient_id: user.id,
-      provider_id: p.id,
-      starts_at: start.toISOString(),
-      ends_at: end.toISOString(),
-      channel: p.telemedicine_enabled ? "telemedicine" : "in_person",
-      reason: aiQuery.slice(0, 500) || "General consultation",
-      status: "scheduled",
-    });
-    setBookingFor(null);
-    if (error) return toast.error(error.message);
-    toast.success(`Booked with ${p.display_name} on ${s.label}`);
+  const openBooking = (provider: Provider, slot: BookingSlot, reason: string) => {
+    setPickerFor(null);
+    setBookingState({ provider, slot, reason });
   };
 
   return (
@@ -83,8 +69,8 @@ function Discover() {
                 <div className="text-xs uppercase tracking-wider text-accent">Suggestion {i + 1}</div>
                 <div className="font-medium mt-1">{s.label}</div>
                 <p className="text-xs text-muted-foreground mt-1">{s.reason}</p>
-                <Button size="sm" className="mt-3 w-full" disabled={filtered.length === 0 || !!bookingFor} onClick={() => book(filtered[0], s)}>
-                  {bookingFor ? "Booking…" : `Book with ${filtered[0]?.display_name?.split(" ").slice(-1)[0] ?? "provider"}`}
+                <Button size="sm" className="mt-3 w-full" onClick={() => setPickerFor(s)}>
+                  Choose provider
                 </Button>
               </div>
             ))}
@@ -114,12 +100,39 @@ function Discover() {
               <p className="text-sm text-muted-foreground mt-3 line-clamp-2">{p.bio}</p>
               <Button size="sm" className="mt-4 w-full" onClick={() => {
                 const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(10, 0, 0, 0);
-                book(p, { label: tomorrow.toLocaleString(), iso: tomorrow.toISOString(), reason: "Next available", score: 1 });
+                openBooking(p, { label: tomorrow.toLocaleString(), iso: tomorrow.toISOString(), reason: "Next available" }, aiQuery || "General consultation");
               }}>Book next available</Button>
             </div>
           </article>
         ))}
       </div>
+
+      {/* Provider picker for AI suggestions */}
+      {pickerFor && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4" onClick={() => setPickerFor(null)}>
+          <div className="bg-card rounded-2xl border border-border max-w-2xl w-full max-h-[80vh] overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="text-xs uppercase tracking-[0.2em] text-accent mb-2">Choose provider for {pickerFor.label}</div>
+            <h3 className="font-serif text-xl mb-4">Which clinician would you like to see?</h3>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {filtered.slice(0, 8).map((p) => (
+                <button key={p.id} onClick={() => openBooking(p, pickerFor!, aiQuery || "General consultation")} className="text-left rounded-xl border border-border hover:border-accent p-3 transition">
+                  <div className="font-medium text-sm">{p.display_name}</div>
+                  <div className="text-xs text-muted-foreground">{p.specialty} · {p.location}</div>
+                </button>
+              ))}
+            </div>
+            <Button variant="ghost" className="mt-4 w-full" onClick={() => setPickerFor(null)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+
+      <BookingDialog
+        open={!!bookingState}
+        onClose={() => setBookingState(null)}
+        provider={bookingState?.provider ?? null}
+        slot={bookingState?.slot ?? null}
+        reason={bookingState?.reason ?? ""}
+      />
     </div>
   );
 }
