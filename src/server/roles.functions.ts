@@ -33,16 +33,23 @@ export const getSystemRoleStatus = createServerFn({ method: "GET" })
     return { adminCount: (data as number | null) ?? 0 };
   });
 
-// Admin-only: approve/deny a role request via SECURITY DEFINER fn (admin client).
+// Admin-only: approve/deny a role request.
 export const decideRoleRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid(), approve: z.boolean() }).parse(d))
   .handler(async ({ data, context }) => {
-    // Verify admin via RLS-safe call before invoking service-role fn.
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) return { ok: false, error: "Forbidden" };
-    const { error } = await supabaseAdmin.rpc("decide_role_request" as never, { _request_id: data.id, _approve: data.approve } as never);
-    if (error) return { ok: false, error: error.message };
+    const { data: req, error: fetchErr } = await supabaseAdmin.from("role_requests").select("*").eq("id", data.id).single();
+    if (fetchErr || !req) return { ok: false, error: "Request not found" };
+    if (req.status !== "pending") return { ok: false, error: "Already decided" };
+    const newStatus = data.approve ? "approved" : "denied";
+    const { error: upErr } = await supabaseAdmin.from("role_requests").update({ status: newStatus, decided_by: context.userId, decided_at: new Date().toISOString() }).eq("id", data.id);
+    if (upErr) return { ok: false, error: upErr.message };
+    if (data.approve) {
+      await supabaseAdmin.from("user_roles").upsert({ user_id: req.user_id, role: req.requested_role }, { onConflict: "user_id,role" });
+    }
+    await supabaseAdmin.from("audit_events").insert({ actor_id: context.userId, action: data.approve ? "role_request.approved" : "role_request.denied", entity: "role_requests", entity_id: data.id, meta: { role: req.requested_role, user_id: req.user_id } });
     return { ok: true, error: null };
   });
 
