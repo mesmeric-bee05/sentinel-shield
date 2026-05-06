@@ -14,8 +14,14 @@ import { Route as SecurityRouteImport } from './routes/security'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForProvidersRouteImport } from './routes/for-providers'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as AppRouteImport } from './routes/app'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppProviderRouteImport } from './routes/app.provider'
+import { Route as AppDiscoverRouteImport } from './routes/app.discover'
+import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
+import { Route as AppAdminRouteImport } from './routes/app.admin'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -42,6 +48,11 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -52,15 +63,46 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProviderRoute = AppProviderRouteImport.update({
+  id: '/provider',
+  path: '/provider',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDiscoverRoute = AppDiscoverRouteImport.update({
+  id: '/discover',
+  path: '/discover',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAppointmentsRoute = AppAppointmentsRouteImport.update({
+  id: '/appointments',
+  path: '/appointments',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/app': typeof AppRouteWithChildren
   '/contact': typeof ContactRoute
   '/for-providers': typeof ForProvidersRoute
   '/login': typeof LoginRoute
   '/security': typeof SecurityRoute
   '/signup': typeof SignupRoute
+  '/app/admin': typeof AppAdminRoute
+  '/app/appointments': typeof AppAppointmentsRoute
+  '/app/discover': typeof AppDiscoverRoute
+  '/app/provider': typeof AppProviderRoute
+  '/app/': typeof AppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,27 +112,44 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/security': typeof SecurityRoute
   '/signup': typeof SignupRoute
+  '/app/admin': typeof AppAdminRoute
+  '/app/appointments': typeof AppAppointmentsRoute
+  '/app/discover': typeof AppDiscoverRoute
+  '/app/provider': typeof AppProviderRoute
+  '/app': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/app': typeof AppRouteWithChildren
   '/contact': typeof ContactRoute
   '/for-providers': typeof ForProvidersRoute
   '/login': typeof LoginRoute
   '/security': typeof SecurityRoute
   '/signup': typeof SignupRoute
+  '/app/admin': typeof AppAdminRoute
+  '/app/appointments': typeof AppAppointmentsRoute
+  '/app/discover': typeof AppDiscoverRoute
+  '/app/provider': typeof AppProviderRoute
+  '/app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/about'
+    | '/app'
     | '/contact'
     | '/for-providers'
     | '/login'
     | '/security'
     | '/signup'
+    | '/app/admin'
+    | '/app/appointments'
+    | '/app/discover'
+    | '/app/provider'
+    | '/app/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,20 +159,32 @@ export interface FileRouteTypes {
     | '/login'
     | '/security'
     | '/signup'
+    | '/app/admin'
+    | '/app/appointments'
+    | '/app/discover'
+    | '/app/provider'
+    | '/app'
   id:
     | '__root__'
     | '/'
     | '/about'
+    | '/app'
     | '/contact'
     | '/for-providers'
     | '/login'
     | '/security'
     | '/signup'
+    | '/app/admin'
+    | '/app/appointments'
+    | '/app/discover'
+    | '/app/provider'
+    | '/app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AppRoute: typeof AppRouteWithChildren
   ContactRoute: typeof ContactRoute
   ForProvidersRoute: typeof ForProvidersRoute
   LoginRoute: typeof LoginRoute
@@ -158,6 +229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -172,12 +250,66 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/provider': {
+      id: '/app/provider'
+      path: '/provider'
+      fullPath: '/app/provider'
+      preLoaderRoute: typeof AppProviderRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/discover': {
+      id: '/app/discover'
+      path: '/discover'
+      fullPath: '/app/discover'
+      preLoaderRoute: typeof AppDiscoverRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/appointments': {
+      id: '/app/appointments'
+      path: '/appointments'
+      fullPath: '/app/appointments'
+      preLoaderRoute: typeof AppAppointmentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/admin': {
+      id: '/app/admin'
+      path: '/admin'
+      fullPath: '/app/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
+
+interface AppRouteChildren {
+  AppAdminRoute: typeof AppAdminRoute
+  AppAppointmentsRoute: typeof AppAppointmentsRoute
+  AppDiscoverRoute: typeof AppDiscoverRoute
+  AppProviderRoute: typeof AppProviderRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAdminRoute: AppAdminRoute,
+  AppAppointmentsRoute: AppAppointmentsRoute,
+  AppDiscoverRoute: AppDiscoverRoute,
+  AppProviderRoute: AppProviderRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AppRoute: AppRouteWithChildren,
   ContactRoute: ContactRoute,
   ForProvidersRoute: ForProvidersRoute,
   LoginRoute: LoginRoute,
@@ -187,3 +319,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
