@@ -53,8 +53,6 @@ export function useAuth() {
   return v;
 }
 
-export function primaryRoute(roles: AppRole[]): string {
-  if (roles.includes("admin")) return "/admin";
-  if (roles.includes("provider")) return "/provider";
-  return "/patient";
+export function primaryRoute(_roles: AppRole[]): string {
+  return "/app";
 }
