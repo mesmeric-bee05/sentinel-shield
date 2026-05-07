@@ -1,89 +1,122 @@
-# ApexCare AI — Phase 2 Build Plan
+## Phase 3 — Booking polish, locking, and notifications
 
-Four cohesive workstreams that extend the Phase 1 foundation. Each ships its own route, server functions where required, RLS-safe data flow, and matches the Clinical Trust visual system.
-
----
-
-## 1. Patient booking — confirmation + calendar integration
-
-**Goal:** turn AI slot suggestions into a guided 3-step flow with a real confirmation screen and downloadable calendar invite.
-
-Changes:
-- Refactor `src/routes/app.discover.tsx` to drive a `BookingDialog` (new `src/components/booking/BookingDialog.tsx`) instead of inline `book()`.
-- Steps: **Choose slot → Review (provider, time, channel, reason, AI summary) → Confirm**. Uses `summarizeIntake` server fn for the AI summary shown on review.
-- On confirm: insert appointment, log to `audit_events` via a new `logAudit` server fn (admin client, action `appointment.created`), then show success state.
-- Success state offers: **Add to calendar (.ics download)**, **Copy details**, **Go to Appointments**. ICS generated client-side (no dep) with proper VEVENT, UID, organizer, telemedicine join URL placeholder.
-- Bookings made from AI suggestions store the chosen `Slot.reason` into `appointments.ai_summary`.
-- Fix current bug: AI "Book" button always books with `filtered[0]` — replace with explicit provider picker tied to the slot.
-
-## 2. Audit log viewer (admin)
-
-**Goal:** secure, filterable, exportable view of `audit_events`.
-
-New route `src/routes/app.admin.audit.tsx` (linked from Operations sidebar, admin-gated via `roles.includes("admin")` + `beforeLoad` redirect for non-admins).
-
-Features:
-- Server-side query with filters: date range (shadcn Calendar popovers), entity (select), action (select), actor email (text search joined to `profiles`).
-- Paginated table (50/page) using shadcn `Table`. Columns: timestamp, actor (email + short id), entity, entity_id, action, meta (expandable JSON popover).
-- **Export CSV** of current filter result (client-side Blob download, capped at 5,000 rows server-side).
-- All queries via a `listAuditEvents` server fn using `requireSupabaseAuth` middleware so RLS (`admins view audit`) enforces access. No service role.
-- Adds an admin self-audit entry on export (`audit.exported`).
-
-## 3. Admin role-bootstrap + role management
-
-**Goal:** safe path from zero admins → first super-admin → ongoing role grants, without ever exposing role mutation to clients.
-
-Schema migration:
-- New table `role_requests` (id, user_id, requested_role, justification, status enum `pending|approved|denied`, decided_by, decided_at, created_at). RLS: users insert/select their own; admins select/update all.
-- New enum value or use existing `app_role`. Add unique partial index to prevent duplicate pending requests.
-- New SQL function `bootstrap_first_admin(_user_id uuid)` SECURITY DEFINER: grants `admin` role **only if zero admins currently exist**. Idempotent and safe.
-- New SQL function `grant_role(_target uuid, _role app_role)` SECURITY DEFINER, checks caller `has_role('admin')` before inserting into `user_roles`. Logs to `audit_events`.
-
-Server functions (`src/server/roles.functions.ts`):
-- `requestRole({ role, justification })` — patient-callable, inserts into `role_requests`.
-- `bootstrapFirstAdmin()` — calls SQL fn; only succeeds when no admin exists. Exposed once on a new `/app/bootstrap` route shown only when the current user has no roles and the system has no admins (cheap check via server fn).
-- `decideRoleRequest({ id, approve })` — admin-only, updates request and (on approve) calls `grant_role`.
-- `revokeRole({ userId, role })` — admin-only.
-
-UI:
-- `src/routes/app.admin.roles.tsx` — pending requests queue, approve/deny, plus "Manage users" panel with search → assign/revoke `provider`/`admin`. All actions call server fns; no direct client `user_roles` writes.
-- Patient-side: small "Apply to be a provider" entry on `/app/index` opening a request dialog.
-- `src/routes/app.bootstrap.tsx` — one-time setup screen visible only when system has no admins.
-
-Security guardrails:
-- Client never inserts/updates `user_roles` directly. RLS already restricts this — we only add the server-fn UX.
-- Every grant/revoke writes an `audit_events` row.
-
-## 4. Telemedicine room shell + AI scribe placeholder
-
-**Goal:** production-feeling consult room UI; real getUserMedia local preview; AI scribe stub wired to existing `scribeDraft`. Full WebRTC signaling stays Phase 3.
-
-New route `src/routes/app.room.$appointmentId.tsx`:
-- Loads appointment via server fn (`requireSupabaseAuth`); 404 if user is not patient or assigned provider.
-- Layout: dark theme room, big remote-video tile (placeholder gradient + "Waiting for participant…"), local self-view PiP using `navigator.mediaDevices.getUserMedia({ video, audio })`, controls bar (mute, camera, screen share stub, end call).
-- Pre-call device check modal with mic/camera permission states and device pickers.
-- Right rail "AI Scribe" panel:
-  - Live transcript area populated by Web Speech API (`SpeechRecognition`) when available; manual textarea fallback.
-  - Buttons: **Generate SOAP draft** (calls `scribeDraft`), **Save to appointment** (writes draft into `appointments.ai_summary`), **Copy**.
-  - Clear "Stub" badge — labeled as draft assistance, not medical record.
-- "Join" buttons in `app.appointments.tsx` and provider dashboard now route to `/app/room/$appointmentId`.
-- Audit entries on room enter/leave and on scribe save.
+Four coordinated workstreams that build on the existing BookingDialog, appointments table, and audit pipeline.
 
 ---
 
-## Technical notes
+### 1. Slot holding / locking (foundation — do this first)
 
-- New files: `src/components/booking/BookingDialog.tsx`, `src/lib/ics.ts`, `src/server/audit.functions.ts`, `src/server/roles.functions.ts`, `src/server/appointments.functions.ts`, `src/server/telemedicine.functions.ts`, route files listed above.
-- One migration: `role_requests` table + RLS + `bootstrap_first_admin` + `grant_role` + audit triggers.
-- All server fns use `requireSupabaseAuth` middleware so RLS applies; only `bootstrap_first_admin` and `grant_role` rely on SECURITY DEFINER with explicit guards.
-- No new npm deps. ICS and CSV are hand-rolled. Speech recognition is browser-native with graceful fallback.
-- Sidebar gains "Operations → Audit log", "Operations → Roles" (admin only).
+Prevent double-booking once a patient confirms an AI-suggested slot.
 
-## Out of scope (Phase 3)
+**Schema** (new migration):
+- New table `slot_holds`:
+  - `id uuid pk`, `provider_id uuid`, `patient_id uuid`, `starts_at timestamptz`, `ends_at timestamptz`, `expires_at timestamptz`, `created_at timestamptz`
+  - Index `(provider_id, starts_at, ends_at)` for overlap checks.
+  - RLS: patient sees own holds; admins see all; providers see holds on their own provider rows.
+- SQL function `acquire_slot_hold(_provider_id, _starts_at, _ends_at, _ttl_seconds default 180)` (SECURITY DEFINER):
+  - Locks via advisory lock per provider.
+  - Rejects if any active hold (`expires_at > now()`) **or** scheduled appointment overlaps the range.
+  - Inserts a hold for `auth.uid()` and returns `{ ok, hold_id, expires_at }`.
+- SQL function `release_slot_hold(_hold_id)` — deletes if owned by `auth.uid()`.
+- SQL function `cleanup_expired_holds()` — `DELETE WHERE expires_at < now()`; called opportunistically inside `acquire_slot_hold`.
+- Update `bookAppointment` server fn (in `src/server/appointments.functions.ts`):
+  - Accept optional `holdId`.
+  - Inside a transaction-like flow: re-check overlap against `appointments` AND other active holds (excluding our own hold), insert appointment, delete the hold.
+  - Audit `appointment.created` with `hold_id` in meta.
 
-- Real WebRTC peer signaling (TURN/STUN, SDP exchange).
-- Continuous ambient scribing with diarization.
-- Blockchain-style hash-chain over `audit_events`.
-- SSO/SAML and step-up MFA for admin actions.
+**Discovery flow**:
+- When user picks an AI suggestion (or "Book next available"), call new server fn `holdSlot` BEFORE opening BookingDialog.
+- BookingDialog receives `hold` prop with `expiresAt`; shows live countdown ("Slot reserved for 2:43"). On dialog close/cancel, call `releaseSlot`.
+- On expiry: disable Confirm, show "Hold expired — re-select a time" with a Retry button that calls `holdSlot` again.
 
-Approve to proceed with implementation.
+**Effect on availability**: `suggestSlots` and any future provider-availability query subtracts active holds + scheduled appointments before returning suggestions.
+
+---
+
+### 2. Enhanced BookingDialog confirmation step
+
+Show full ranked context next to the AI pre-summary.
+
+- Extend `BookingDialog` props: accept `rankedSuggestions: Slot[]` (top 3 from `suggestSlots`) and `selectedIndex`.
+- Add a "Why this slot" panel above the AI pre-summary:
+  - Selected slot card (highlighted): provider name + specialty, time, channel icon, reason, score badge.
+  - Two collapsed alternates with a "Switch" link — clicking releases current hold, acquires hold for the new slot, swaps state.
+- Channel display: respect `provider.telemedicine_enabled`; show telemedicine room URL preview (`/app/room/<id>` placeholder until booking completes) and an in-person address row when applicable.
+- Add a hold-countdown chip in the dialog header.
+
+`app.discover.tsx` updates: pass the full `slots` array and the chosen index into `BookingDialog`.
+
+---
+
+### 3. ICS calendar preview + timezone validation
+
+Make the downloaded `.ics` always match what the user saw.
+
+- Create `src/lib/timezone.ts`: `getBrowserTimeZone()` (`Intl.DateTimeFormat().resolvedOptions().timeZone`), `formatInTz(date, tz)`, `assertSameInstant(iso, displayedLabel, tz)`.
+- Extend `IcsEvent` with optional `timeZone`. Update `buildIcs` to emit a VTIMEZONE block + `DTSTART;TZID=...` / `DTEND;TZID=...` when `timeZone` is provided (still UTC fallback otherwise). This guarantees calendar apps render the exact wall-clock the patient picked.
+- Pass `timeZone: getBrowserTimeZone()` from BookingDialog into `downloadIcs`.
+- New "Calendar preview" step in BookingDialog success view (before Download):
+  - Renders the parsed `.ics` summary: title, organizer, start/end shown in **both** the patient's TZ and UTC, location/room URL, description.
+  - Validation banner: re-derives the start/end from `slot.iso`, compares to what will be written to the ICS. If they don't match (e.g. DST edge), show an error and block download.
+- Surface the timezone clearly: "Times shown in America/New_York (your device)".
+
+---
+
+### 4. Email + optional SMS confirmations
+
+Triggered server-side immediately after `bookAppointment` succeeds.
+
+**Email (Lovable Emails — built-in)**:
+- Prerequisites the user must complete in-product: configure an email sender domain, then we set up email infrastructure. Plan covers the code path; we'll trigger the setup dialog on execution.
+- Create transactional template `src/lib/email-templates/booking-confirmation.tsx`:
+  - Brand-aligned (Clinical Trust palette, Inter/Instrument Serif), white body background.
+  - Sections: greeting, provider/time/channel summary, AI clinical pre-summary, telemedicine room button (`/app/room/<appointmentId>`) when applicable, "Add to calendar" instructions (link back to appointment page where the .ics download lives — attachments aren't supported by the platform), what-to-expect copy, contact info.
+  - Register in `src/lib/email-templates/registry.ts` with `previewData`.
+- Create `src/lib/email/send.ts` helper (per platform pattern).
+- In `bookAppointment` handler, after audit insert:
+  - Look up patient email + name from `profiles`.
+  - Call the send-transactional-email server route with `idempotencyKey: booking-confirm-<appointmentId>`, `templateData: { patientName, providerName, specialty, whenLocal, whenUtc, channel, roomUrl, reason, aiSummary, appointmentUrl }`.
+  - Failures are logged but never block the booking response.
+
+**SMS (optional)**:
+- Add `sms_opt_in boolean default false` and `phone_e164 text` to `profiles` (migration). UI toggle on `/app/index` profile area (out of scope to fully build here, but the column + toggle wired in).
+- Add a per-booking checkbox in BookingDialog: "Also text me a reminder" (disabled if user has no phone or hasn't opted in, with a link to add it).
+- Provider: Twilio via the standard connector. We'll request the user to connect Twilio when they enable SMS — until then the toggle stays disabled with a "Connect SMS provider" hint.
+- New server fn `sendBookingSms({ appointmentId })`:
+  - Reads phone + opt-in from profile, builds short message: `ApexCare: visit with Dr. <Name> on <local time>. Join: <short room URL or appointments link>. Reply STOP to opt out.`
+  - Calls Twilio via the connector gateway using `LOVABLE_API_KEY` + `TWILIO_*` connection secrets.
+  - Audit `sms.sent` / `sms.failed`.
+- Called from `bookAppointment` only if patient opted in AND included the per-booking checkbox.
+
+---
+
+### Files to add / change
+
+**New**
+- `supabase/migrations/<ts>_slot_holds.sql` — table, RLS, `acquire_slot_hold`, `release_slot_hold`, `cleanup_expired_holds`.
+- `supabase/migrations/<ts>_profile_sms.sql` — `sms_opt_in`, `phone_e164` on `profiles`.
+- `src/server/holds.functions.ts` — `holdSlot`, `releaseSlot`.
+- `src/server/notifications.functions.ts` — `sendBookingEmail`, `sendBookingSms` (called by `bookAppointment`; also exposed for resend).
+- `src/lib/timezone.ts`
+- `src/lib/email/send.ts`
+- `src/lib/email-templates/booking-confirmation.tsx`
+- `src/lib/email-templates/registry.ts` (created by scaffold; we add our template entry)
+- Email infra scaffolded via the platform's setup tools (no manual SQL).
+
+**Edited**
+- `src/server/appointments.functions.ts` — accept `holdId`, transactional overlap check, fire email+SMS.
+- `src/lib/ics.ts` — VTIMEZONE support, TZID parameters.
+- `src/components/booking/BookingDialog.tsx` — ranked suggestions panel, hold countdown, ICS preview step, SMS opt-in checkbox, switch-alternate flow.
+- `src/routes/app.discover.tsx` — acquire hold on suggestion click, pass `rankedSuggestions` + `selectedIndex` + `hold` to dialog, release on cancel.
+- `src/routes/app.index.tsx` — small profile section to set phone + SMS opt-in (so the per-booking checkbox is usable).
+
+### Sequencing during implementation
+1. Slot-holds migration + server fns + booking integration (correctness foundation).
+2. ICS timezone work + dialog preview step.
+3. Ranked-suggestions panel + alternate switching.
+4. Email scaffolding + booking-confirmation template + send on book.
+5. SMS opt-in column, profile UI, Twilio connector wiring + send on book.
+
+### What I'll need from you during execution
+- Approve the email sender-domain setup dialog when it appears (one-time).
+- Approve connecting **Twilio** when we reach the SMS step (or tell me to skip SMS and ship email only for now).
