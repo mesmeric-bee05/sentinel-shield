@@ -107,6 +107,8 @@ export type Database = {
           id: string
           insurance_provider: string | null
           phone: string | null
+          phone_e164: string | null
+          sms_opt_in: boolean
           updated_at: string
         }
         Insert: {
@@ -118,6 +120,8 @@ export type Database = {
           id: string
           insurance_provider?: string | null
           phone?: string | null
+          phone_e164?: string | null
+          sms_opt_in?: boolean
           updated_at?: string
         }
         Update: {
@@ -129,6 +133,8 @@ export type Database = {
           id?: string
           insurance_provider?: string | null
           phone?: string | null
+          phone_e164?: string | null
+          sms_opt_in?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -249,6 +255,36 @@ export type Database = {
         }
         Relationships: []
       }
+      slot_holds: {
+        Row: {
+          created_at: string
+          ends_at: string
+          expires_at: string
+          id: string
+          patient_id: string
+          provider_id: string
+          starts_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          expires_at: string
+          id?: string
+          patient_id: string
+          provider_id: string
+          starts_at: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          expires_at?: string
+          id?: string
+          patient_id?: string
+          provider_id?: string
+          starts_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -275,8 +311,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_slot_hold: {
+        Args: {
+          _ends_at: string
+          _provider_id: string
+          _starts_at: string
+          _ttl_seconds?: number
+        }
+        Returns: Json
+      }
       admin_count: { Args: never; Returns: number }
       bootstrap_first_admin: { Args: { _user_id: string }; Returns: boolean }
+      cleanup_expired_holds: { Args: never; Returns: undefined }
       decide_role_request: {
         Args: { _approve: boolean; _request_id: string }
         Returns: boolean
@@ -304,6 +350,7 @@ export type Database = {
         }
         Returns: string
       }
+      release_slot_hold: { Args: { _hold_id: string }; Returns: boolean }
       revoke_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
