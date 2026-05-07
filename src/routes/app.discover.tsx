@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, MapPin, Search, Sparkles, Star, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "./app";
 import { suggestSlots } from "@/server/ai.functions";
-import { BookingDialog, type BookingProvider, type BookingSlot } from "@/components/booking/BookingDialog";
+import { BookingDialog, type BookingProvider, type BookingSlot, type RankedSuggestion } from "@/components/booking/BookingDialog";
 
 export const Route = createFileRoute("/app/discover")({
   head: () => ({ meta: [{ title: "Find care — ApexCare AI" }] }),
@@ -24,8 +24,8 @@ function Discover() {
   const [aiQuery, setAiQuery] = useState("");
   const [slots, setSlots] = useState<Slot[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
-  const [bookingState, setBookingState] = useState<{ provider: Provider; slot: BookingSlot; reason: string } | null>(null);
-  const [pickerFor, setPickerFor] = useState<Slot | null>(null);
+  const [bookingState, setBookingState] = useState<{ provider: Provider; slot: BookingSlot; reason: string; ranked?: RankedSuggestion[]; selectedIndex?: number } | null>(null);
+  const [pickerFor, setPickerFor] = useState<{ slot: Slot; index: number } | null>(null);
 
   useEffect(() => {
     supabase.from("providers").select("*").eq("is_active", true).then(({ data }) => setProviders((data ?? []) as Provider[]));
@@ -45,9 +45,16 @@ function Discover() {
     setSlots(r.slots as Slot[]);
   };
 
-  const openBooking = (provider: Provider, slot: BookingSlot, reason: string) => {
+  const buildRanked = (chosenProvider: Provider): RankedSuggestion[] =>
+    slots.slice(0, 3).map((s, i) => ({
+      slot: { label: s.label, iso: s.iso, reason: s.reason, score: s.score },
+      // Default to the chosen provider for index 0; rotate through filtered list for alternates
+      provider: i === 0 ? chosenProvider : (filtered[i % Math.max(filtered.length, 1)] ?? chosenProvider),
+    }));
+
+  const openBooking = (provider: Provider, slot: BookingSlot, reason: string, opts?: { ranked?: RankedSuggestion[]; selectedIndex?: number }) => {
     setPickerFor(null);
-    setBookingState({ provider, slot, reason });
+    setBookingState({ provider, slot, reason, ranked: opts?.ranked, selectedIndex: opts?.selectedIndex });
   };
 
   return (
@@ -66,10 +73,13 @@ function Discover() {
           <div className="mt-5 grid md:grid-cols-3 gap-3">
             {slots.map((s, i) => (
               <div key={i} className="rounded-xl bg-background border border-border p-4 ai-shimmer">
-                <div className="text-xs uppercase tracking-wider text-accent">Suggestion {i + 1}</div>
+                <div className="flex items-center justify-between text-xs uppercase tracking-wider text-accent">
+                  <span>Suggestion {i + 1}</span>
+                  <span className="text-muted-foreground normal-case">score {s.score.toFixed(2)}</span>
+                </div>
                 <div className="font-medium mt-1">{s.label}</div>
                 <p className="text-xs text-muted-foreground mt-1">{s.reason}</p>
-                <Button size="sm" className="mt-3 w-full" onClick={() => setPickerFor(s)}>
+                <Button size="sm" className="mt-3 w-full" onClick={() => setPickerFor({ slot: s, index: i })}>
                   Choose provider
                 </Button>
               </div>
@@ -111,11 +121,16 @@ function Discover() {
       {pickerFor && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4" onClick={() => setPickerFor(null)}>
           <div className="bg-card rounded-2xl border border-border max-w-2xl w-full max-h-[80vh] overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="text-xs uppercase tracking-[0.2em] text-accent mb-2">Choose provider for {pickerFor.label}</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-accent mb-2">Choose provider for {pickerFor.slot.label}</div>
             <h3 className="font-serif text-xl mb-4">Which clinician would you like to see?</h3>
             <div className="grid sm:grid-cols-2 gap-2">
               {filtered.slice(0, 8).map((p) => (
-                <button key={p.id} onClick={() => openBooking(p, pickerFor!, aiQuery || "General consultation")} className="text-left rounded-xl border border-border hover:border-accent p-3 transition">
+                <button key={p.id} onClick={() => {
+                  const ranked = buildRanked(p);
+                  // ensure index 0 is this provider+slot
+                  ranked[0] = { provider: p, slot: pickerFor.slot };
+                  openBooking(p, pickerFor.slot, aiQuery || "General consultation", { ranked, selectedIndex: 0 });
+                }} className="text-left rounded-xl border border-border hover:border-accent p-3 transition">
                   <div className="font-medium text-sm">{p.display_name}</div>
                   <div className="text-xs text-muted-foreground">{p.specialty} · {p.location}</div>
                 </button>
@@ -132,6 +147,8 @@ function Discover() {
         provider={bookingState?.provider ?? null}
         slot={bookingState?.slot ?? null}
         reason={bookingState?.reason ?? ""}
+        ranked={bookingState?.ranked}
+        selectedIndex={bookingState?.selectedIndex}
       />
     </div>
   );
