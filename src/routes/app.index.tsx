@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "./app";
+import { ContactPreferencesCard } from "@/components/profile/ContactPreferencesCard";
 
 export const Route = createFileRoute("/app/")({
   head: () => ({ meta: [{ title: "Overview — ApexCare AI" }] }),
@@ -70,11 +71,14 @@ function Overview() {
             )
           }
         </div>
-        <div className="rounded-2xl border border-border bg-gradient-ai p-6">
-          <Sparkles className="w-6 h-6 text-accent" />
-          <div className="mt-4 font-serif text-xl">AI Concierge</div>
-          <p className="text-sm text-muted-foreground mt-1">Describe what you need and let the platform find the best care.</p>
-          <Button asChild className="mt-5 w-full"><Link to="/app/discover">Start a search <ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border bg-gradient-ai p-6">
+            <Sparkles className="w-6 h-6 text-accent" />
+            <div className="mt-4 font-serif text-xl">AI Concierge</div>
+            <p className="text-sm text-muted-foreground mt-1">Describe what you need and let the platform find the best care.</p>
+            <Button asChild className="mt-5 w-full"><Link to="/app/discover">Start a search <ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
+          </div>
+          <ContactPreferencesCard />
         </div>
       </div>
     </div>
