@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Activity, Calendar, FileSearch, LayoutDashboard, LogOut, Search, ShieldCheck, Stethoscope, UserCog, Users, Video } from "lucide-react";
+import { Activity, Bell, Calendar, FileSearch, LayoutDashboard, LogOut, Search, ShieldCheck, Stethoscope, UserCog, Users, Video } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +33,7 @@ function AppShell() {
     { to: "/app/provider", label: "Clinician", icon: Stethoscope, show: isProvider },
     { to: "/app/admin", label: "Operations", icon: Users, show: isAdmin },
     { to: "/app/admin/audit", label: "Audit log", icon: FileSearch, show: isAdmin },
+    { to: "/app/admin/notifications", label: "Notifications", icon: Bell, show: isAdmin },
     { to: "/app/admin/roles", label: "Roles", icon: UserCog, show: isAdmin },
   ].filter((n) => n.show !== false);
 

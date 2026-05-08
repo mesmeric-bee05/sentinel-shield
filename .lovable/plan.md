@@ -1,122 +1,127 @@
-## Phase 3 — Booking polish, locking, and notifications
+# Phase 4 — Notifications Console, SMS/Email Live, Hardening, and Geo-Intelligence Foundation
 
-Four coordinated workstreams that build on the existing BookingDialog, appointments table, and audit pipeline.
+This plan splits the request into two tracks: **Track A** ships the immediate, well-scoped items you asked for (audit console, security hardening, Twilio, email sender domain). **Track B** lays a realistic, security-first foundation for the ApexCare AI Geo-Intelligence Layer, CHW Mesh, AI Prior Auth, and Wearable Guardian — scoped to what is buildable in this app today, with clear stubs where external infrastructure (HSM, X12 clearinghouse, ambulance APIs, satellite messengers) is out of scope.
 
----
-
-### 1. Slot holding / locking (foundation — do this first)
-
-Prevent double-booking once a patient confirms an AI-suggested slot.
-
-**Schema** (new migration):
-- New table `slot_holds`:
-  - `id uuid pk`, `provider_id uuid`, `patient_id uuid`, `starts_at timestamptz`, `ends_at timestamptz`, `expires_at timestamptz`, `created_at timestamptz`
-  - Index `(provider_id, starts_at, ends_at)` for overlap checks.
-  - RLS: patient sees own holds; admins see all; providers see holds on their own provider rows.
-- SQL function `acquire_slot_hold(_provider_id, _starts_at, _ends_at, _ttl_seconds default 180)` (SECURITY DEFINER):
-  - Locks via advisory lock per provider.
-  - Rejects if any active hold (`expires_at > now()`) **or** scheduled appointment overlaps the range.
-  - Inserts a hold for `auth.uid()` and returns `{ ok, hold_id, expires_at }`.
-- SQL function `release_slot_hold(_hold_id)` — deletes if owned by `auth.uid()`.
-- SQL function `cleanup_expired_holds()` — `DELETE WHERE expires_at < now()`; called opportunistically inside `acquire_slot_hold`.
-- Update `bookAppointment` server fn (in `src/server/appointments.functions.ts`):
-  - Accept optional `holdId`.
-  - Inside a transaction-like flow: re-check overlap against `appointments` AND other active holds (excluding our own hold), insert appointment, delete the hold.
-  - Audit `appointment.created` with `hold_id` in meta.
-
-**Discovery flow**:
-- When user picks an AI suggestion (or "Book next available"), call new server fn `holdSlot` BEFORE opening BookingDialog.
-- BookingDialog receives `hold` prop with `expiresAt`; shows live countdown ("Slot reserved for 2:43"). On dialog close/cancel, call `releaseSlot`.
-- On expiry: disable Confirm, show "Hold expired — re-select a time" with a Retry button that calls `holdSlot` again.
-
-**Effect on availability**: `suggestSlots` and any future provider-availability query subtracts active holds + scheduled appointments before returning suggestions.
+I will not try to ship all four "11/10" modules end-to-end in one pass — each is a multi-week build. Instead I will scaffold the data model, server functions, RLS, and UI shells so the system is real and extensible, not vapor.
 
 ---
 
-### 2. Enhanced BookingDialog confirmation step
+## Track A — Operational hardening (ship first)
 
-Show full ranked context next to the AI pre-summary.
+### A1. Notifications audit console
+- New route `/app/admin/notifications` (admin-only via `has_role`).
+- Server fn `listNotificationEvents` filters `audit_events` where `action IN ('email.sent','email.skipped','email.failed','sms.sent','sms.skipped','sms.failed')`.
+- Filters: date range, channel (email/sms), status (sent/skipped/failed), actor email search, appointment id.
+- Table: timestamp, channel, status, recipient (resolved from profile), appointment link, meta JSON inline.
+- CSV export server fn (logs `audit.export` itself).
+- Sidebar link under Admin.
 
-- Extend `BookingDialog` props: accept `rankedSuggestions: Slot[]` (top 3 from `suggestSlots`) and `selectedIndex`.
-- Add a "Why this slot" panel above the AI pre-summary:
-  - Selected slot card (highlighted): provider name + specialty, time, channel icon, reason, score badge.
-  - Two collapsed alternates with a "Switch" link — clicking releases current hold, acquires hold for the new slot, swaps state.
-- Channel display: respect `provider.telemedicine_enabled`; show telemedicine room URL preview (`/app/room/<id>` placeholder until booking completes) and an in-person address row when applicable.
-- Add a hold-countdown chip in the dialog header.
+### A2. SQL hardening (linter cleanup)
+- Run `supabase--linter` and address every WARN/ERROR.
+- Tighten `acquire_slot_hold`, `release_slot_hold`, `cleanup_expired_holds`, `bootstrap_first_admin`, `grant_role`, `revoke_role`, `decide_role_request`, `log_audit`, `has_role`, `admin_count`, `handle_new_user`:
+  - `REVOKE EXECUTE ... FROM PUBLIC, anon` on every SECURITY DEFINER function; `GRANT EXECUTE TO authenticated` only where appropriate (`cleanup_expired_holds` → `GRANT TO service_role` only).
+  - Ensure `SET search_path = public, pg_temp` everywhere (some are missing `pg_temp`).
+  - Add explicit `SECURITY INVOKER` on the few helpers that don't need definer rights.
+- Add a partial index on `slot_holds (provider_id, expires_at)` for the cleanup hot path.
+- Schedule `cleanup_expired_holds` via `pg_cron` every minute.
 
-`app.discover.tsx` updates: pass the full `slots` array and the chosen index into `BookingDialog`.
+### A3. Email sender domain + transactional sending
+- Call `email_domain--check_email_domain_status`. If none → surface the email setup dialog button.
+- After domain is configured: `email_domain--setup_email_infra`, then `email_domain--scaffold_transactional_email`.
+- Create `src/lib/email-templates/booking-confirmation.tsx` (Clinical Trust palette, white body, Inter / Instrument Serif, room link button, "Add to calendar" link back to `/app/appointments`).
+- Register in `src/lib/email-templates/registry.ts`.
+- Create `src/lib/email/send.ts` helper with the Supabase JWT pattern.
+- Refactor `bookAppointment` to call `sendTransactionalEmail` (replaces the current `fetch('/lovable/email/transactional/send')` call which uses the wrong path/auth shape).
+- Audit `email.queued` instead of `email.sent` — actual send status moves to the queue/log.
 
----
-
-### 3. ICS calendar preview + timezone validation
-
-Make the downloaded `.ics` always match what the user saw.
-
-- Create `src/lib/timezone.ts`: `getBrowserTimeZone()` (`Intl.DateTimeFormat().resolvedOptions().timeZone`), `formatInTz(date, tz)`, `assertSameInstant(iso, displayedLabel, tz)`.
-- Extend `IcsEvent` with optional `timeZone`. Update `buildIcs` to emit a VTIMEZONE block + `DTSTART;TZID=...` / `DTEND;TZID=...` when `timeZone` is provided (still UTC fallback otherwise). This guarantees calendar apps render the exact wall-clock the patient picked.
-- Pass `timeZone: getBrowserTimeZone()` from BookingDialog into `downloadIcs`.
-- New "Calendar preview" step in BookingDialog success view (before Download):
-  - Renders the parsed `.ics` summary: title, organizer, start/end shown in **both** the patient's TZ and UTC, location/room URL, description.
-  - Validation banner: re-derives the start/end from `slot.iso`, compares to what will be written to the ICS. If they don't match (e.g. DST edge), show an error and block download.
-- Surface the timezone clearly: "Times shown in America/New_York (your device)".
-
----
-
-### 4. Email + optional SMS confirmations
-
-Triggered server-side immediately after `bookAppointment` succeeds.
-
-**Email (Lovable Emails — built-in)**:
-- Prerequisites the user must complete in-product: configure an email sender domain, then we set up email infrastructure. Plan covers the code path; we'll trigger the setup dialog on execution.
-- Create transactional template `src/lib/email-templates/booking-confirmation.tsx`:
-  - Brand-aligned (Clinical Trust palette, Inter/Instrument Serif), white body background.
-  - Sections: greeting, provider/time/channel summary, AI clinical pre-summary, telemedicine room button (`/app/room/<appointmentId>`) when applicable, "Add to calendar" instructions (link back to appointment page where the .ics download lives — attachments aren't supported by the platform), what-to-expect copy, contact info.
-  - Register in `src/lib/email-templates/registry.ts` with `previewData`.
-- Create `src/lib/email/send.ts` helper (per platform pattern).
-- In `bookAppointment` handler, after audit insert:
-  - Look up patient email + name from `profiles`.
-  - Call the send-transactional-email server route with `idempotencyKey: booking-confirm-<appointmentId>`, `templateData: { patientName, providerName, specialty, whenLocal, whenUtc, channel, roomUrl, reason, aiSummary, appointmentUrl }`.
-  - Failures are logged but never block the booking response.
-
-**SMS (optional)**:
-- Add `sms_opt_in boolean default false` and `phone_e164 text` to `profiles` (migration). UI toggle on `/app/index` profile area (out of scope to fully build here, but the column + toggle wired in).
-- Add a per-booking checkbox in BookingDialog: "Also text me a reminder" (disabled if user has no phone or hasn't opted in, with a link to add it).
-- Provider: Twilio via the standard connector. We'll request the user to connect Twilio when they enable SMS — until then the toggle stays disabled with a "Connect SMS provider" hint.
-- New server fn `sendBookingSms({ appointmentId })`:
-  - Reads phone + opt-in from profile, builds short message: `ApexCare: visit with Dr. <Name> on <local time>. Join: <short room URL or appointments link>. Reply STOP to opt out.`
-  - Calls Twilio via the connector gateway using `LOVABLE_API_KEY` + `TWILIO_*` connection secrets.
-  - Audit `sms.sent` / `sms.failed`.
-- Called from `bookAppointment` only if patient opted in AND included the per-booking checkbox.
+### A4. Twilio SMS live
+- `standard_connectors--connect` for Twilio.
+- `secrets--add_secret` for `TWILIO_FROM_NUMBER` (E.164).
+- After both are present, the existing `ContactPreferencesCard` SMS opt-in stays enabled; today it's already wired but disabled until a phone is set. Add a small "SMS provider connected ✓" indicator in the card (admin-visible) and an inline note about STOP-to-opt-out.
+- Verify `bookAppointment`'s SMS branch end-to-end via a test booking; the audit row should flip from `sms.skipped {reason: twilio_not_configured}` to `sms.sent {sid}`.
+- Add Twilio SMS Pumping Protection + Geo Permissions reminder in the admin Notifications page header.
 
 ---
 
-### Files to add / change
+## Track B — ApexCare AI Geo-Intelligence & next-gen modules (foundation pass)
 
-**New**
-- `supabase/migrations/<ts>_slot_holds.sql` — table, RLS, `acquire_slot_hold`, `release_slot_hold`, `cleanup_expired_holds`.
-- `supabase/migrations/<ts>_profile_sms.sql` — `sms_opt_in`, `phone_e164` on `profiles`.
-- `src/server/holds.functions.ts` — `holdSlot`, `releaseSlot`.
-- `src/server/notifications.functions.ts` — `sendBookingEmail`, `sendBookingSms` (called by `bookAppointment`; also exposed for resend).
-- `src/lib/timezone.ts`
-- `src/lib/email/send.ts`
-- `src/lib/email-templates/booking-confirmation.tsx`
-- `src/lib/email-templates/registry.ts` (created by scaffold; we add our template entry)
-- Email infra scaffolded via the platform's setup tools (no manual SQL).
+I will build the **data model, RLS, server functions, and admin/clinician UI shells** for these four modules. Live external integrations (Mapbox tokens, OSRM, X12 clearinghouse, RapidSOS, wearable SDKs) are stubbed behind a typed adapter interface so we can flip them on per-environment without refactors.
 
-**Edited**
-- `src/server/appointments.functions.ts` — accept `holdId`, transactional overlap check, fire email+SMS.
-- `src/lib/ics.ts` — VTIMEZONE support, TZID parameters.
-- `src/components/booking/BookingDialog.tsx` — ranked suggestions panel, hold countdown, ICS preview step, SMS opt-in checkbox, switch-alternate flow.
-- `src/routes/app.discover.tsx` — acquire hold on suggestion click, pass `rankedSuggestions` + `selectedIndex` + `hold` to dialog, release on cancel.
-- `src/routes/app.index.tsx` — small profile section to set phone + SMS opt-in (so the per-booking checkbox is usable).
+### B1. Geo-Intelligence Layer (GIL) — Section 2.13
+**Data**
+- `patient_locations` (column-encrypted lat/lng using `pgsodium`-style envelope: store ciphertext + a key reference; key lives in Lovable secret, decryption only inside SECURITY DEFINER fn that requires `auth.uid() = patient_id` or `has_role('provider')` with an active appointment).
+- `geo_fences` (id, owner_id, name, center_geohash, radius_m, kind: clinic/risk_zone/pharmacy).
+- `geo_events` (patient_id, fence_id_hash, kind: enter/exit, occurred_at) — 30-day TTL via cron.
+- `outbreak_signals` (geohash5, symptom_code, bucket_hour, count) — TimescaleDB-style continuous aggregate emulated in plain Postgres for now.
 
-### Sequencing during implementation
-1. Slot-holds migration + server fns + booking integration (correctness foundation).
-2. ICS timezone work + dialog preview step.
-3. Ranked-suggestions panel + alternate switching.
-4. Email scaffolding + booking-confirmation template + send on book.
-5. SMS opt-in column, profile UI, Twilio connector wiring + send on book.
+**Server functions**
+- `suggestSlotsWithProximity` extends existing `suggestSlots`: accepts patient origin (or reads encrypted home), returns slots ranked with `score - λ * travelMinutes`. Travel time uses a `TravelTimeProvider` interface; default `HaversineProvider` (no external API). Mapbox/HERE adapters are stubs.
+- `recordGeoEvent` accepts pre-hashed fence id only — server never sees raw coordinates. Rules engine is a simple table-driven evaluator (`geo_rules` table) that emits notifications via the existing notifications pipeline.
+- `getOutbreakClusters` (admin) — DBSCAN-lite over `outbreak_signals` (k-NN density in plain SQL; no PHI, geohash-5 only).
 
-### What I'll need from you during execution
-- Approve the email sender-domain setup dialog when it appears (one-time).
-- Approve connecting **Twilio** when we reach the SMS step (or tell me to skip SMS and ship email only for now).
+**UI**
+- `/app/admin/geo` — heatmap of `outbreak_signals` (geohash-5 grid rendered as colored cells; no Mapbox token required for v1, swappable later).
+- `/app/admin/geo/fences` — CRUD for clinic fences.
+- Patient discover page: optional "Use my location" toggle that runs proximity scoring locally (browser geolocation → server fn with coarsened geohash-6).
+- Privacy banner + explicit opt-in dialog before any location is captured.
+
+**Privacy guarantees baked into RLS**
+- `patient_locations` SELECT: `patient_id = auth.uid()` only. Decryption fn requires explicit `purpose` arg and audit-logs every call.
+- `geo_events` retention: cron `DELETE WHERE occurred_at < now() - interval '30 days'`.
+
+### B2. CHW Mesh — Section 2.14 (foundation only)
+- New role `chw` in `app_role` enum.
+- Tables: `chw_tasks` (assignee, patient_id, kind, status, scheduled_for, location_geohash6), `chw_breadcrumbs` (assignee, geohash7, ts) — 7-day TTL.
+- Server fn `assignChwTasks` — greedy nearest-neighbor allocator (full VRP/OR-Tools is out of scope for this pass; interface left in place).
+- Route `/app/chw` — task list, mark complete, capture FHIR-style Questionnaire response (JSON for now). Offline-first PWA work is **explicitly out of scope** here; flagged as B2-next.
+
+### B3. AI Prior Authorization Negotiator — Section 2.15 (skeleton)
+- Tables: `prior_auth_cases` (appointment_id, payer_code, status: drafting/submitted/info_requested/approved/denied/peer_review, last_event_at), `prior_auth_events` (case_id, kind, payload jsonb, actor).
+- Server fn `draftPriorAuthLetter` calls Lovable AI Gateway (`google/gemini-2.5-pro`) with a **de-identified** abstract + payer policy text only. PHI scrubber utility added (`src/lib/phi-scrub.ts`) with regex + name-list redaction; unit tests.
+- X12 278/277 generation is **not** built — we generate a human-readable JSON envelope and surface a "Submit to clearinghouse" stub button that records the event. Flagged clearly as adapter point.
+- Provider UI under `/app/provider/prior-auth`: list + drawer with the AI-drafted letter, approve/edit/sign (text signature for now; biometric/HSM left as stub).
+
+### B4. AIClinical Guardian (Wearable + Emergency) — Section 2.16 (skeleton)
+- Table: `wearable_events` (patient_id, kind: fall/hr_high/hr_low/spo2_low, vitals jsonb, occurred_at, ack_state).
+- Server fn `ingestWearableEvent` — accepts opt-in events, runs the rule (e.g., fall + no ack 15s → create `emergency_session` row).
+- Table: `emergency_sessions` (patient_id, opened_at, status, telemed_appointment_id nullable).
+- Patient PWA: full-screen critical-alert modal on receipt of own `wearable_events` row via Supabase Realtime; "I'm OK" button writes ack within 15s.
+- On no-ack → server creates a `scheduled` telemed appointment with the on-call provider (a new `on_call_rotation` table; admin UI to manage), flips `emergency_sessions.status` to `dispatched`, and emits an audit row + email/SMS to the on-call provider.
+- RapidSOS / EMS dispatch is a stub adapter (`EmergencyDispatchProvider`), not live.
+- Opt-in is explicit, with a dedicated consent screen and revocable toggle in profile.
+
+---
+
+## Cross-cutting hardening
+- Run `supabase--linter` + `security--run_security_scan` at the end and fix every finding.
+- Update `security--update_memory` to record what's intentionally public (provider listings, geohash-5 outbreak data) and what is hard-forbidden (raw patient coordinates leaving SECURITY DEFINER functions, PHI to LLM).
+- Add `src/lib/phi-scrub.ts` with tests.
+- Add a single `src/lib/adapters/` directory for `TravelTimeProvider`, `EmergencyDispatchProvider`, `PayerClearinghouseProvider`, `WearableProvider` so future real integrations slot in cleanly.
+- Add `pg_cron` jobs: `cleanup_expired_holds` (every 1m), `purge_geo_events` (hourly), `purge_breadcrumbs` (hourly), `rollup_outbreak_signals` (every 15m).
+
+---
+
+## Sequencing & checkpoints
+1. **A2 SQL hardening + cron** (lowest risk, unblocks linter).
+2. **A3 Email domain + transactional template** (requires you to click the email-setup dialog once).
+3. **A1 Notifications audit console** (depends on A3/A4 producing rows).
+4. **A4 Twilio connect + secret + verify SMS send**.
+5. **B1 GIL data model + RLS + admin heatmap + proximity scoring**.
+6. **B4 Wearable Guardian skeleton + Realtime alert**.
+7. **B3 Prior Auth skeleton + AI letter drafter + PHI scrubber**.
+8. **B2 CHW Mesh skeleton**.
+9. Final linter + security scan + memory update.
+
+## What I need from you during execution
+- Click the email-domain setup dialog when it appears (one-time DNS).
+- Approve the Twilio connector dialog and paste a valid `TWILIO_FROM_NUMBER` in the secret prompt.
+- Confirm you want **role `chw`** added to the existing `app_role` enum (it's permanent — enums can't drop values cleanly).
+- Confirm you accept the **stub** approach for X12 / RapidSOS / Mapbox / wearable SDKs in this pass (real integrations are separate engagements).
+
+## Out of scope for this pass (explicitly)
+- Offline PWA + MBTiles + WASM OSRM (real device work, separate sprint).
+- Hyperledger Fabric / IOTA Streams ledgers (audit_events table is the immutable store today).
+- HSM-backed signing keys (would need a managed KMS; we'll use Supabase Vault as the interim).
+- Real X12 EDI generation and clearinghouse submission.
+- Live ambulance / RapidSOS dispatch.
+- Native wearable SDKs (Apple Health / Garmin) — events arrive via a documented webhook only.
