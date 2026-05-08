@@ -63,7 +63,7 @@ function NotificationsAuditPage() {
       page, pageSize, forExport: false,
     }});
     if (r.error === "Forbidden") { setForbidden(true); setLoading(false); return; }
-    setItems(r.items as Row[]); setTotal(r.total); setLoading(false);
+    setItems(r.items as unknown as Row[]); setTotal(r.total); setLoading(false);
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [page]);
@@ -84,7 +84,7 @@ function NotificationsAuditPage() {
     setExporting(false);
     const headers = ["timestamp","channel","status","recipient_name","recipient_email","recipient_phone","appointment_id","meta"];
     const csv = [headers.join(",")].concat(
-      (r.items as Row[]).map((row) => [
+      (r.items as unknown as Row[]).map((row) => [
         row.created_at,
         channelOf(row.action),
         statusOf(row.action),

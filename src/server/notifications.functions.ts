@@ -23,7 +23,8 @@ const FilterInput = z.object({
 type EventRow = {
   id: string; created_at: string; actor_id: string | null;
   entity: string; entity_id: string | null; action: string;
-  meta: Record<string, unknown> | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  meta: Record<string, any> | null;
 };
 
 export const listNotificationEvents = createServerFn({ method: "POST" })

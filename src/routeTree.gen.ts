@@ -25,6 +25,7 @@ import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
 import { Route as AppAdminRouteImport } from './routes/app.admin'
 import { Route as AppRoomAppointmentIdRouteImport } from './routes/app.room.$appointmentId'
 import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
+import { Route as AppAdminNotificationsRouteImport } from './routes/app.admin.notifications'
 import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
 
 const SignupRoute = SignupRouteImport.update({
@@ -107,6 +108,11 @@ const AppAdminRolesRoute = AppAdminRolesRouteImport.update({
   path: '/roles',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminNotificationsRoute = AppAdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/notifications': typeof AppAdminNotificationsRoute
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
 }
@@ -147,6 +154,7 @@ export interface FileRoutesByTo {
   '/app/provider': typeof AppProviderRoute
   '/app': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/notifications': typeof AppAdminNotificationsRoute
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
 }
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/notifications': typeof AppAdminNotificationsRoute
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
 }
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/app/provider'
     | '/app/'
     | '/app/admin/audit'
+    | '/app/admin/notifications'
     | '/app/admin/roles'
     | '/app/room/$appointmentId'
   fileRoutesByTo: FileRoutesByTo
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/app/provider'
     | '/app'
     | '/app/admin/audit'
+    | '/app/admin/notifications'
     | '/app/admin/roles'
     | '/app/room/$appointmentId'
   id:
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/app/provider'
     | '/app/'
     | '/app/admin/audit'
+    | '/app/admin/notifications'
     | '/app/admin/roles'
     | '/app/room/$appointmentId'
   fileRoutesById: FileRoutesById
@@ -354,6 +366,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminRolesRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/app/admin/notifications': {
+      id: '/app/admin/notifications'
+      path: '/notifications'
+      fullPath: '/app/admin/notifications'
+      preLoaderRoute: typeof AppAdminNotificationsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/audit': {
       id: '/app/admin/audit'
       path: '/audit'
@@ -366,11 +385,13 @@ declare module '@tanstack/react-router' {
 
 interface AppAdminRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
+  AppAdminNotificationsRoute: typeof AppAdminNotificationsRoute
   AppAdminRolesRoute: typeof AppAdminRolesRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
+  AppAdminNotificationsRoute: AppAdminNotificationsRoute,
   AppAdminRolesRoute: AppAdminRolesRoute,
 }
 
