@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ClipboardList, Loader2, MapPin } from "lucide-react";
-import { listAssignments, updateAssignmentStatus } from "@/server/chw.functions";
+import { listAssignments, updateAssignmentStatus, type StatusUpdateInputT } from "@/server/chw.functions";
 import { PageHeader } from "./app";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ function ChwHomePage() {
   });
 
   const update = useMutation({
-    mutationFn: (v: Parameters<typeof upd>[0]["data"]) => upd({ data: v }),
+    mutationFn: (v: StatusUpdateInputT) => upd({ data: v }),
     onSuccess: (r) => {
       if (r.ok) { toast.success("Updated"); qc.invalidateQueries({ queryKey: ["chw-mine"] }); }
       else toast.error(r.error ?? "Failed");

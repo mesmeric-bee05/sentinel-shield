@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Loader2, Plus, UsersRound, ListChecks } from "lucide-react";
-import { listChwWorkers, upsertChwWorker, listAssignments, dispatchAssignment } from "@/server/chw.functions";
+import { listChwWorkers, upsertChwWorker, listAssignments, dispatchAssignment, type ChwWorkerInputT, type DispatchInputT } from "@/server/chw.functions";
 import { PageHeader } from "./app";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,14 +34,14 @@ function ChwPage() {
   });
 
   const createWorker = useMutation({
-    mutationFn: (v: Parameters<typeof upsert>[0]["data"]) => upsert({ data: v }),
+    mutationFn: (v: ChwWorkerInputT) => upsert({ data: v }),
     onSuccess: (r) => {
       if (r.ok) { toast.success("CHW saved"); qc.invalidateQueries({ queryKey: ["chw-workers"] }); }
       else toast.error(r.error ?? "Failed");
     },
   });
   const createAssign = useMutation({
-    mutationFn: (v: Parameters<typeof dispatch>[0]["data"]) => dispatch({ data: v }),
+    mutationFn: (v: DispatchInputT) => dispatch({ data: v }),
     onSuccess: (r) => {
       if (r.ok) { toast.success("Dispatched"); qc.invalidateQueries({ queryKey: ["chw-assignments"] }); }
       else toast.error(r.error ?? "Failed");
@@ -115,7 +115,7 @@ function ChwPage() {
   );
 }
 
-function NewWorkerDialog({ onCreate, pending }: { onCreate: (v: Parameters<typeof upsertChwWorker>[0]["data"]) => void; pending: boolean }) {
+function NewWorkerDialog({ onCreate, pending }: { onCreate: (v: ChwWorkerInputT) => void; pending: boolean }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     user_id: "", display_name: "", languages: "en", skills: "",
@@ -160,7 +160,7 @@ function NewWorkerDialog({ onCreate, pending }: { onCreate: (v: Parameters<typeo
   );
 }
 
-function NewAssignmentDialog({ onCreate, pending }: { onCreate: (v: Parameters<typeof dispatchAssignment>[0]["data"]) => void; pending: boolean }) {
+function NewAssignmentDialog({ onCreate, pending }: { onCreate: (v: DispatchInputT) => void; pending: boolean }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     patient_id: "", task_type: "wellness_call" as (typeof TASK_TYPES)[number],
