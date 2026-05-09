@@ -56,7 +56,7 @@ export const listAssignments = createServerFn({ method: "POST" })
       .select("*, chw:chw_workers(display_name, user_id)")
       .order("due_at", { ascending: true })
       .limit(200);
-    if (data.status) q = q.eq("status", data.status);
+    if (data.status) q = q.eq("status", data.status as "pending");
     if (data.onlyMine) {
       const { data: me } = await supabaseAdmin.from("chw_workers").select("id").eq("user_id", context.userId).maybeSingle();
       if (!me) return { assignments: [], error: null as string | null };
