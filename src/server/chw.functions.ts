@@ -33,9 +33,11 @@ export const upsertChwWorker = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) return { ok: false, error: "forbidden" };
-    const { error } = data.id
-      ? await supabaseAdmin.from("chw_workers").update(data).eq("id", data.id)
-      : await supabaseAdmin.from("chw_workers").insert(data);
+    const { id, ...rest } = data;
+    const payload = { ...rest, base_lat: rest.base_lat ?? null, base_lng: rest.base_lng ?? null };
+    const { error } = id
+      ? await supabaseAdmin.from("chw_workers").update(payload).eq("id", id)
+      : await supabaseAdmin.from("chw_workers").insert(payload);
     return { ok: !error, error: error?.message ?? null };
   });
 

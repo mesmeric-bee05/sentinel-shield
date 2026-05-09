@@ -15,19 +15,17 @@ export const listFacilities = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     let q = supabaseAdmin.from("care_facilities").select("*").eq("is_active", true).limit(data.limit);
-    if (data.facilityType) q = q.eq("facility_type", data.facilityType);
+    if (data.facilityType) q = q.eq("facility_type", data.facilityType as "clinic");
     const { data: rows, error } = await q;
     if (error) return { facilities: [], error: error.message };
-    let facilities = rows ?? [];
+    type Row = NonNullable<typeof rows>[number] & { distance_km?: number };
+    let facilities: Row[] = (rows ?? []) as Row[];
     if (data.near) {
       const near = data.near;
       facilities = facilities
-        .map((f: { latitude: number; longitude: number }) => ({
-          ...f,
-          distance_km: haversineMeters({ lat: f.latitude, lng: f.longitude }, near) / 1000,
-        }))
-        .filter((f: { distance_km: number }) => f.distance_km <= data.radiusKm)
-        .sort((a: { distance_km: number }, b: { distance_km: number }) => a.distance_km - b.distance_km);
+        .map((f) => ({ ...f, distance_km: haversineMeters({ lat: f.latitude, lng: f.longitude }, near) / 1000 }))
+        .filter((f) => (f.distance_km ?? Infinity) <= data.radiusKm)
+        .sort((a, b) => (a.distance_km ?? 0) - (b.distance_km ?? 0));
     }
     return { facilities, error: null as string | null };
   });
@@ -64,8 +62,15 @@ export const upsertFacility = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) return { ok: false, error: "forbidden" };
-    const { error } = data.id
-      ? await supabaseAdmin.from("care_facilities").update(data).eq("id", data.id)
-      : await supabaseAdmin.from("care_facilities").insert(data);
+    const { id, ...rest } = data;
+    const payload = {
+      ...rest,
+      address: rest.address ?? null,
+      phone: rest.phone ?? null,
+      hours: rest.hours ?? null,
+    };
+    const { error } = id
+      ? await supabaseAdmin.from("care_facilities").update(payload).eq("id", id)
+      : await supabaseAdmin.from("care_facilities").insert(payload);
     return { ok: !error, error: error?.message ?? null };
   });
