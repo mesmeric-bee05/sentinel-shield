@@ -145,15 +145,7 @@ export const dispatchAssignment = createServerFn({ method: "POST" })
 
 export const updateAssignmentStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({
-      id: z.string().uuid(),
-      status: z.enum(["pending", "accepted", "in_progress", "completed", "cancelled", "escalated"]),
-      notes: z.string().max(2000).optional().nullable(),
-      geo_lat: z.number().min(-90).max(90).optional().nullable(),
-      geo_lng: z.number().min(-180).max(180).optional().nullable(),
-    }).parse(d),
-  )
+  .inputValidator((d) => StatusUpdateInput.parse(d))
   .handler(async ({ data, context }) => {
     // Confirm caller owns the assignment (CHW) or is admin.
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
