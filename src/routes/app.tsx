@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Activity, Bell, Calendar, FileSearch, LayoutDashboard, LogOut, Search, ShieldCheck, Stethoscope, UserCog, Users, Video } from "lucide-react";
+import { Activity, Bell, Calendar, FileSearch, LayoutDashboard, LogOut, Map, Search, ShieldCheck, Stethoscope, UserCog, Users, UsersRound, Video } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,8 +30,11 @@ function AppShell() {
     { to: "/app", label: "Overview", icon: LayoutDashboard, exact: true },
     { to: "/app/discover", label: "Find care", icon: Search, show: true },
     { to: "/app/appointments", label: "Appointments", icon: Calendar, show: true },
+    { to: "/app/chw", label: "CHW queue", icon: UsersRound, show: true },
     { to: "/app/provider", label: "Clinician", icon: Stethoscope, show: isProvider },
     { to: "/app/admin", label: "Operations", icon: Users, show: isAdmin },
+    { to: "/app/admin/geo", label: "Geo intel", icon: Map, show: isAdmin },
+    { to: "/app/admin/chw", label: "CHW mesh", icon: UsersRound, show: isAdmin },
     { to: "/app/admin/audit", label: "Audit log", icon: FileSearch, show: isAdmin },
     { to: "/app/admin/notifications", label: "Notifications", icon: Bell, show: isAdmin },
     { to: "/app/admin/roles", label: "Roles", icon: UserCog, show: isAdmin },

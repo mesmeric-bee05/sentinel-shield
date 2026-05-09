@@ -97,6 +97,188 @@ export type Database = {
         }
         Relationships: []
       }
+      care_facilities: {
+        Row: {
+          address: string | null
+          created_at: string
+          facility_type: Database["public"]["Enums"]["facility_type"]
+          hours: string | null
+          id: string
+          is_active: boolean
+          latitude: number
+          longitude: number
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          facility_type?: Database["public"]["Enums"]["facility_type"]
+          hours?: string | null
+          id?: string
+          is_active?: boolean
+          latitude: number
+          longitude: number
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          facility_type?: Database["public"]["Enums"]["facility_type"]
+          hours?: string | null
+          id?: string
+          is_active?: boolean
+          latitude?: number
+          longitude?: number
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chw_assignments: {
+        Row: {
+          chw_id: string | null
+          created_at: string
+          created_by: string | null
+          due_at: string
+          id: string
+          notes: string | null
+          patient_id: string
+          patient_lat: number | null
+          patient_lng: number | null
+          priority: Database["public"]["Enums"]["chw_priority"]
+          status: Database["public"]["Enums"]["chw_assignment_status"]
+          task_type: Database["public"]["Enums"]["chw_task_type"]
+          updated_at: string
+        }
+        Insert: {
+          chw_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_at?: string
+          id?: string
+          notes?: string | null
+          patient_id: string
+          patient_lat?: number | null
+          patient_lng?: number | null
+          priority?: Database["public"]["Enums"]["chw_priority"]
+          status?: Database["public"]["Enums"]["chw_assignment_status"]
+          task_type?: Database["public"]["Enums"]["chw_task_type"]
+          updated_at?: string
+        }
+        Update: {
+          chw_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_at?: string
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          patient_lat?: number | null
+          patient_lng?: number | null
+          priority?: Database["public"]["Enums"]["chw_priority"]
+          status?: Database["public"]["Enums"]["chw_assignment_status"]
+          task_type?: Database["public"]["Enums"]["chw_task_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chw_assignments_chw_id_fkey"
+            columns: ["chw_id"]
+            isOneToOne: false
+            referencedRelation: "chw_workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chw_check_ins: {
+        Row: {
+          assignment_id: string
+          chw_id: string
+          created_at: string
+          geo_lat: number | null
+          geo_lng: number | null
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["chw_assignment_status"]
+        }
+        Insert: {
+          assignment_id: string
+          chw_id: string
+          created_at?: string
+          geo_lat?: number | null
+          geo_lng?: number | null
+          id?: string
+          notes?: string | null
+          status: Database["public"]["Enums"]["chw_assignment_status"]
+        }
+        Update: {
+          assignment_id?: string
+          chw_id?: string
+          created_at?: string
+          geo_lat?: number | null
+          geo_lng?: number | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["chw_assignment_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chw_check_ins_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "chw_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chw_check_ins_chw_id_fkey"
+            columns: ["chw_id"]
+            isOneToOne: false
+            referencedRelation: "chw_workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chw_workers: {
+        Row: {
+          base_lat: number | null
+          base_lng: number | null
+          created_at: string
+          display_name: string
+          id: string
+          is_active: boolean
+          languages: string[]
+          skills: string[]
+          user_id: string
+        }
+        Insert: {
+          base_lat?: number | null
+          base_lng?: number | null
+          created_at?: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          languages?: string[]
+          skills?: string[]
+          user_id: string
+        }
+        Update: {
+          base_lat?: number | null
+          base_lng?: number | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          languages?: string[]
+          skills?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -255,6 +437,39 @@ export type Database = {
         }
         Relationships: []
       }
+      service_areas: {
+        Row: {
+          center_lat: number
+          center_lng: number
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          population_estimate: number | null
+          radius_km: number
+        }
+        Insert: {
+          center_lat: number
+          center_lng: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          population_estimate?: number | null
+          radius_km?: number
+        }
+        Update: {
+          center_lat?: number
+          center_lng?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          population_estimate?: number | null
+          radius_km?: number
+        }
+        Relationships: []
+      }
       slot_holds: {
         Row: {
           created_at: string
@@ -282,6 +497,45 @@ export type Database = {
           patient_id?: string
           provider_id?: string
           starts_at?: string
+        }
+        Relationships: []
+      }
+      travel_time_cache: {
+        Row: {
+          computed_at: string
+          dest_lat: number
+          dest_lng: number
+          distance_meters: number
+          duration_seconds: number
+          id: string
+          mode: string
+          origin_lat: number
+          origin_lng: number
+          provider: string
+        }
+        Insert: {
+          computed_at?: string
+          dest_lat: number
+          dest_lng: number
+          distance_meters: number
+          duration_seconds: number
+          id?: string
+          mode?: string
+          origin_lat: number
+          origin_lng: number
+          provider?: string
+        }
+        Update: {
+          computed_at?: string
+          dest_lat?: number
+          dest_lng?: number
+          distance_meters?: number
+          duration_seconds?: number
+          id?: string
+          mode?: string
+          origin_lat?: number
+          origin_lng?: number
+          provider?: string
         }
         Relationships: []
       }
@@ -369,6 +623,28 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_show"
+      chw_assignment_status:
+        | "pending"
+        | "accepted"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+        | "escalated"
+      chw_priority: "low" | "normal" | "high" | "urgent"
+      chw_task_type:
+        | "home_visit"
+        | "medication_check"
+        | "wellness_call"
+        | "transport"
+        | "education"
+        | "triage_followup"
+      facility_type:
+        | "clinic"
+        | "hospital"
+        | "pharmacy"
+        | "urgent_care"
+        | "lab"
+        | "community_center"
       role_request_status: "pending" | "approved" | "denied"
     }
     CompositeTypes: {
@@ -506,6 +782,31 @@ export const Constants = {
         "completed",
         "cancelled",
         "no_show",
+      ],
+      chw_assignment_status: [
+        "pending",
+        "accepted",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "escalated",
+      ],
+      chw_priority: ["low", "normal", "high", "urgent"],
+      chw_task_type: [
+        "home_visit",
+        "medication_check",
+        "wellness_call",
+        "transport",
+        "education",
+        "triage_followup",
+      ],
+      facility_type: [
+        "clinic",
+        "hospital",
+        "pharmacy",
+        "urgent_care",
+        "lab",
+        "community_center",
       ],
       role_request_status: ["pending", "approved", "denied"],
     },

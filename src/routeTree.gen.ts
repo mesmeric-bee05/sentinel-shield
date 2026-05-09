@@ -20,12 +20,15 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppProviderRouteImport } from './routes/app.provider'
 import { Route as AppDiscoverRouteImport } from './routes/app.discover'
+import { Route as AppChwRouteImport } from './routes/app.chw'
 import { Route as AppBootstrapRouteImport } from './routes/app.bootstrap'
 import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
 import { Route as AppAdminRouteImport } from './routes/app.admin'
 import { Route as AppRoomAppointmentIdRouteImport } from './routes/app.room.$appointmentId'
 import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
 import { Route as AppAdminNotificationsRouteImport } from './routes/app.admin.notifications'
+import { Route as AppAdminGeoRouteImport } from './routes/app.admin.geo'
+import { Route as AppAdminChwRouteImport } from './routes/app.admin.chw'
 import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
 
 const SignupRoute = SignupRouteImport.update({
@@ -83,6 +86,11 @@ const AppDiscoverRoute = AppDiscoverRouteImport.update({
   path: '/discover',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChwRoute = AppChwRouteImport.update({
+  id: '/chw',
+  path: '/chw',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBootstrapRoute = AppBootstrapRouteImport.update({
   id: '/bootstrap',
   path: '/bootstrap',
@@ -113,6 +121,16 @@ const AppAdminNotificationsRoute = AppAdminNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminGeoRoute = AppAdminGeoRouteImport.update({
+  id: '/geo',
+  path: '/geo',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminChwRoute = AppAdminChwRouteImport.update({
+  id: '/chw',
+  path: '/chw',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -131,10 +149,13 @@ export interface FileRoutesByFullPath {
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
   '/app/bootstrap': typeof AppBootstrapRoute
+  '/app/chw': typeof AppChwRoute
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/chw': typeof AppAdminChwRoute
+  '/app/admin/geo': typeof AppAdminGeoRoute
   '/app/admin/notifications': typeof AppAdminNotificationsRoute
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
@@ -150,10 +171,13 @@ export interface FileRoutesByTo {
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
   '/app/bootstrap': typeof AppBootstrapRoute
+  '/app/chw': typeof AppChwRoute
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/chw': typeof AppAdminChwRoute
+  '/app/admin/geo': typeof AppAdminGeoRoute
   '/app/admin/notifications': typeof AppAdminNotificationsRoute
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
@@ -171,10 +195,13 @@ export interface FileRoutesById {
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
   '/app/bootstrap': typeof AppBootstrapRoute
+  '/app/chw': typeof AppChwRoute
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/chw': typeof AppAdminChwRoute
+  '/app/admin/geo': typeof AppAdminGeoRoute
   '/app/admin/notifications': typeof AppAdminNotificationsRoute
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
@@ -193,10 +220,13 @@ export interface FileRouteTypes {
     | '/app/admin'
     | '/app/appointments'
     | '/app/bootstrap'
+    | '/app/chw'
     | '/app/discover'
     | '/app/provider'
     | '/app/'
     | '/app/admin/audit'
+    | '/app/admin/chw'
+    | '/app/admin/geo'
     | '/app/admin/notifications'
     | '/app/admin/roles'
     | '/app/room/$appointmentId'
@@ -212,10 +242,13 @@ export interface FileRouteTypes {
     | '/app/admin'
     | '/app/appointments'
     | '/app/bootstrap'
+    | '/app/chw'
     | '/app/discover'
     | '/app/provider'
     | '/app'
     | '/app/admin/audit'
+    | '/app/admin/chw'
+    | '/app/admin/geo'
     | '/app/admin/notifications'
     | '/app/admin/roles'
     | '/app/room/$appointmentId'
@@ -232,10 +265,13 @@ export interface FileRouteTypes {
     | '/app/admin'
     | '/app/appointments'
     | '/app/bootstrap'
+    | '/app/chw'
     | '/app/discover'
     | '/app/provider'
     | '/app/'
     | '/app/admin/audit'
+    | '/app/admin/chw'
+    | '/app/admin/geo'
     | '/app/admin/notifications'
     | '/app/admin/roles'
     | '/app/room/$appointmentId'
@@ -331,6 +367,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDiscoverRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/chw': {
+      id: '/app/chw'
+      path: '/chw'
+      fullPath: '/app/chw'
+      preLoaderRoute: typeof AppChwRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/bootstrap': {
       id: '/app/bootstrap'
       path: '/bootstrap'
@@ -373,6 +416,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminNotificationsRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/app/admin/geo': {
+      id: '/app/admin/geo'
+      path: '/geo'
+      fullPath: '/app/admin/geo'
+      preLoaderRoute: typeof AppAdminGeoRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/chw': {
+      id: '/app/admin/chw'
+      path: '/chw'
+      fullPath: '/app/admin/chw'
+      preLoaderRoute: typeof AppAdminChwRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/audit': {
       id: '/app/admin/audit'
       path: '/audit'
@@ -385,12 +442,16 @@ declare module '@tanstack/react-router' {
 
 interface AppAdminRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
+  AppAdminChwRoute: typeof AppAdminChwRoute
+  AppAdminGeoRoute: typeof AppAdminGeoRoute
   AppAdminNotificationsRoute: typeof AppAdminNotificationsRoute
   AppAdminRolesRoute: typeof AppAdminRolesRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
+  AppAdminChwRoute: AppAdminChwRoute,
+  AppAdminGeoRoute: AppAdminGeoRoute,
   AppAdminNotificationsRoute: AppAdminNotificationsRoute,
   AppAdminRolesRoute: AppAdminRolesRoute,
 }
@@ -403,6 +464,7 @@ interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppAppointmentsRoute: typeof AppAppointmentsRoute
   AppBootstrapRoute: typeof AppBootstrapRoute
+  AppChwRoute: typeof AppChwRoute
   AppDiscoverRoute: typeof AppDiscoverRoute
   AppProviderRoute: typeof AppProviderRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -413,6 +475,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
   AppAppointmentsRoute: AppAppointmentsRoute,
   AppBootstrapRoute: AppBootstrapRoute,
+  AppChwRoute: AppChwRoute,
   AppDiscoverRoute: AppDiscoverRoute,
   AppProviderRoute: AppProviderRoute,
   AppIndexRoute: AppIndexRoute,
