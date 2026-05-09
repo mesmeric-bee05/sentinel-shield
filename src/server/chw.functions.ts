@@ -16,20 +16,21 @@ export const listChwWorkers = createServerFn({ method: "POST" })
     return { workers: data ?? [], error: error?.message ?? null, isAdmin: !!isAdmin };
   });
 
+export const ChwWorkerInput = z.object({
+  id: z.string().uuid().optional().nullable(),
+  user_id: z.string().uuid(),
+  display_name: z.string().min(2).max(120),
+  languages: z.array(z.string().min(2).max(8)).default(["en"]),
+  skills: z.array(z.string().min(2).max(40)).default([]),
+  base_lat: z.number().min(-90).max(90).optional().nullable(),
+  base_lng: z.number().min(-180).max(180).optional().nullable(),
+  is_active: z.boolean().default(true),
+});
+export type ChwWorkerInputT = z.input<typeof ChwWorkerInput>;
+
 export const upsertChwWorker = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({
-      id: z.string().uuid().optional().nullable(),
-      user_id: z.string().uuid(),
-      display_name: z.string().min(2).max(120),
-      languages: z.array(z.string().min(2).max(8)).default(["en"]),
-      skills: z.array(z.string().min(2).max(40)).default([]),
-      base_lat: z.number().min(-90).max(90).optional().nullable(),
-      base_lng: z.number().min(-180).max(180).optional().nullable(),
-      is_active: z.boolean().default(true),
-    }).parse(d),
-  )
+  .inputValidator((d) => ChwWorkerInput.parse(d))
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) return { ok: false, error: "forbidden" };
