@@ -67,19 +67,30 @@ export const listAssignments = createServerFn({ method: "POST" })
     return { assignments: rows ?? [], error: error?.message ?? null };
   });
 
+export const DispatchInput = z.object({
+  patient_id: z.string().uuid(),
+  task_type: z.enum(["home_visit", "medication_check", "wellness_call", "transport", "education", "triage_followup"]),
+  priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+  due_at: z.string().datetime().optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  patient_lat: z.number().min(-90).max(90).optional().nullable(),
+  patient_lng: z.number().min(-180).max(180).optional().nullable(),
+  preferred_chw_id: z.string().uuid().optional().nullable(),
+});
+export type DispatchInputT = z.input<typeof DispatchInput>;
+
+export const StatusUpdateInput = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["pending", "accepted", "in_progress", "completed", "cancelled", "escalated"]),
+  notes: z.string().max(2000).optional().nullable(),
+  geo_lat: z.number().min(-90).max(90).optional().nullable(),
+  geo_lng: z.number().min(-180).max(180).optional().nullable(),
+});
+export type StatusUpdateInputT = z.input<typeof StatusUpdateInput>;
+
 export const dispatchAssignment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({
-      patient_id: z.string().uuid(),
-      task_type: z.enum(["home_visit", "medication_check", "wellness_call", "transport", "education", "triage_followup"]),
-      priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
-      due_at: z.string().datetime().optional().nullable(),
-      notes: z.string().max(2000).optional().nullable(),
-      patient_lat: z.number().min(-90).max(90).optional().nullable(),
-      patient_lng: z.number().min(-180).max(180).optional().nullable(),
-      preferred_chw_id: z.string().uuid().optional().nullable(),
-    }).parse(d),
+  .inputValidator((d) => DispatchInput.parse(d))
   )
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
