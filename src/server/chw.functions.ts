@@ -91,7 +91,6 @@ export type StatusUpdateInputT = z.input<typeof StatusUpdateInput>;
 export const dispatchAssignment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => DispatchInput.parse(d))
-  )
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     const { data: isProv } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "provider" });
