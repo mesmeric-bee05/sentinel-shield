@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { MapPin, Plus, Route as RouteIcon, Loader2, Building2 } from "lucide-react";
-import { listFacilities, getTravelEstimate, upsertFacility } from "@/server/geo.functions";
+import { listFacilities, getTravelEstimate, upsertFacility, type FacilityInputT } from "@/server/geo.functions";
 import { PageHeader } from "./app";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ function GeoPage() {
   });
 
   const create = useMutation({
-    mutationFn: (vals: Parameters<typeof upsert>[0]["data"]) => upsert({ data: vals }),
+    mutationFn: (vals: FacilityInputT) => upsert({ data: vals }),
     onSuccess: (r) => {
       if (r.ok) {
         toast.success("Facility saved");
@@ -136,7 +136,7 @@ function GeoPage() {
   );
 }
 
-function NewFacilityDialog({ onCreate, pending }: { onCreate: (v: Parameters<typeof upsertFacility>[0]["data"]) => void; pending: boolean }) {
+function NewFacilityDialog({ onCreate, pending }: { onCreate: (v: FacilityInputT) => void; pending: boolean }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     name: "", facility_type: "clinic" as (typeof FACILITY_TYPES)[number],
