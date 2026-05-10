@@ -162,6 +162,7 @@ async function sendBookingNotifications(a: NotifyArgs): Promise<void> {
           patientName: profile.full_name ?? "there",
           providerName: a.providerName,
           specialty: a.specialty,
+          whenLocal: a.startsAt.toLocaleString(),
           whenUtc,
           channel: a.channel,
           location: a.location ?? "",
