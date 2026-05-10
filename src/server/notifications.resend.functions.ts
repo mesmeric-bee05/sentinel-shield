@@ -12,7 +12,7 @@ export const getBookingEmailHistory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ appointmentId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    if (!(await assertAdmin(context.supabase, context.userId))) {
+    if (!(await assertAdmin(context.userId))) {
       return { ok: false as const, error: "Forbidden", appointment: null, recipient: null, events: [] };
     }
     const { data: appt } = await supabaseAdmin
@@ -44,7 +44,7 @@ export const resendBookingConfirmation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ appointmentId: z.string().uuid(), reason: z.string().max(500).optional() }).parse(d))
   .handler(async ({ data, context }) => {
-    if (!(await assertAdmin(context.supabase, context.userId))) {
+    if (!(await assertAdmin(context.userId))) {
       return { ok: false as const, error: "Forbidden", status: 0 };
     }
 
@@ -117,7 +117,7 @@ export const previewBookingEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ appointmentId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    if (!(await assertAdmin(context.supabase, context.userId))) return { ok: false as const, error: "Forbidden", data: null };
+    if (!(await assertAdmin(context.userId))) return { ok: false as const, error: "Forbidden", data: null };
     const { data: appt } = await supabaseAdmin
       .from("appointments")
       .select("id, starts_at, channel, reason, ai_summary, patient_id, provider:providers(display_name, specialty, location)")
