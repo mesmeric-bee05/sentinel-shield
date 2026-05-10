@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { getPatientContact, updateContactPreferences } from "@/server/profile.functions";
+import { getPatientContact, updatePatientContact } from "@/server/profile.functions";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/test/sms")({
@@ -22,7 +22,7 @@ type Event = { id: string; action: string; created_at: string; meta: Record<stri
 
 function SmsTestPage() {
   const getContact = useServerFn(getPatientContact);
-  const updateContact = useServerFn(updateContactPreferences);
+  const updateContact = useServerFn(updatePatientContact);
   const [contact, setContact] = useState<{ phoneE164: string | null; smsOptIn: boolean } | null>(null);
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
