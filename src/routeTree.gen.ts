@@ -30,6 +30,8 @@ import { Route as AppAdminNotificationsRouteImport } from './routes/app.admin.no
 import { Route as AppAdminGeoRouteImport } from './routes/app.admin.geo'
 import { Route as AppAdminChwRouteImport } from './routes/app.admin.chw'
 import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
+import { Route as AppAdminTestSmsRouteImport } from './routes/app.admin.test.sms'
+import { Route as AppAdminNotificationsResendRouteImport } from './routes/app.admin.notifications.resend'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -136,6 +138,17 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminTestSmsRoute = AppAdminTestSmsRouteImport.update({
+  id: '/test/sms',
+  path: '/test/sms',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminNotificationsResendRoute =
+  AppAdminNotificationsResendRouteImport.update({
+    id: '/resend',
+    path: '/resend',
+    getParentRoute: () => AppAdminNotificationsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -156,9 +169,11 @@ export interface FileRoutesByFullPath {
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
   '/app/admin/geo': typeof AppAdminGeoRoute
-  '/app/admin/notifications': typeof AppAdminNotificationsRoute
+  '/app/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
+  '/app/admin/notifications/resend': typeof AppAdminNotificationsResendRoute
+  '/app/admin/test/sms': typeof AppAdminTestSmsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -178,9 +193,11 @@ export interface FileRoutesByTo {
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
   '/app/admin/geo': typeof AppAdminGeoRoute
-  '/app/admin/notifications': typeof AppAdminNotificationsRoute
+  '/app/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
+  '/app/admin/notifications/resend': typeof AppAdminNotificationsResendRoute
+  '/app/admin/test/sms': typeof AppAdminTestSmsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -202,9 +219,11 @@ export interface FileRoutesById {
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
   '/app/admin/geo': typeof AppAdminGeoRoute
-  '/app/admin/notifications': typeof AppAdminNotificationsRoute
+  '/app/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
+  '/app/admin/notifications/resend': typeof AppAdminNotificationsResendRoute
+  '/app/admin/test/sms': typeof AppAdminTestSmsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -230,6 +249,8 @@ export interface FileRouteTypes {
     | '/app/admin/notifications'
     | '/app/admin/roles'
     | '/app/room/$appointmentId'
+    | '/app/admin/notifications/resend'
+    | '/app/admin/test/sms'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -252,6 +273,8 @@ export interface FileRouteTypes {
     | '/app/admin/notifications'
     | '/app/admin/roles'
     | '/app/room/$appointmentId'
+    | '/app/admin/notifications/resend'
+    | '/app/admin/test/sms'
   id:
     | '__root__'
     | '/'
@@ -275,6 +298,8 @@ export interface FileRouteTypes {
     | '/app/admin/notifications'
     | '/app/admin/roles'
     | '/app/room/$appointmentId'
+    | '/app/admin/notifications/resend'
+    | '/app/admin/test/sms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -437,23 +462,52 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/app/admin/test/sms': {
+      id: '/app/admin/test/sms'
+      path: '/test/sms'
+      fullPath: '/app/admin/test/sms'
+      preLoaderRoute: typeof AppAdminTestSmsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/notifications/resend': {
+      id: '/app/admin/notifications/resend'
+      path: '/resend'
+      fullPath: '/app/admin/notifications/resend'
+      preLoaderRoute: typeof AppAdminNotificationsResendRouteImport
+      parentRoute: typeof AppAdminNotificationsRoute
+    }
   }
 }
+
+interface AppAdminNotificationsRouteChildren {
+  AppAdminNotificationsResendRoute: typeof AppAdminNotificationsResendRoute
+}
+
+const AppAdminNotificationsRouteChildren: AppAdminNotificationsRouteChildren = {
+  AppAdminNotificationsResendRoute: AppAdminNotificationsResendRoute,
+}
+
+const AppAdminNotificationsRouteWithChildren =
+  AppAdminNotificationsRoute._addFileChildren(
+    AppAdminNotificationsRouteChildren,
+  )
 
 interface AppAdminRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminChwRoute: typeof AppAdminChwRoute
   AppAdminGeoRoute: typeof AppAdminGeoRoute
-  AppAdminNotificationsRoute: typeof AppAdminNotificationsRoute
+  AppAdminNotificationsRoute: typeof AppAdminNotificationsRouteWithChildren
   AppAdminRolesRoute: typeof AppAdminRolesRoute
+  AppAdminTestSmsRoute: typeof AppAdminTestSmsRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminChwRoute: AppAdminChwRoute,
   AppAdminGeoRoute: AppAdminGeoRoute,
-  AppAdminNotificationsRoute: AppAdminNotificationsRoute,
+  AppAdminNotificationsRoute: AppAdminNotificationsRouteWithChildren,
   AppAdminRolesRoute: AppAdminRolesRoute,
+  AppAdminTestSmsRoute: AppAdminTestSmsRoute,
 }
 
 const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
@@ -497,12 +551,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
