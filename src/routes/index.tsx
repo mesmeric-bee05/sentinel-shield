@@ -10,6 +10,31 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "One platform for AI scheduling, telemedicine, ambient clinical notes, and predictive operations — built on a Zero-Trust security model." },
       { property: "og:title", content: "ApexCare AI — Healthcare Operating System" },
       { property: "og:description", content: "Eliminate fragmentation. Unify every patient–provider–admin workflow." },
+      { property: "og:url", content: "https://harmony-forge-nexus.lovable.app/" },
+    ],
+    links: [{ rel: "canonical", href: "https://harmony-forge-nexus.lovable.app/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "ApexCare AI",
+          url: "https://harmony-forge-nexus.lovable.app/",
+          description: "The AI-Powered Healthcare Operating System unifying scheduling, telemedicine, ambient clinical AI, and Zero-Trust security.",
+          sameAs: [],
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "ApexCare AI",
+          url: "https://harmony-forge-nexus.lovable.app/",
+          description: "AI-Powered Healthcare Operating System for patients, providers, and health systems.",
+        }),
+      },
     ],
   }),
   component: Landing,

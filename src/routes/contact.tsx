@@ -15,7 +15,9 @@ export const Route = createFileRoute("/contact")({
       { name: "description", content: "Talk to the ApexCare AI team about deploying the AI Healthcare Operating System in your clinic, hospital, or network." },
       { property: "og:title", content: "Contact ApexCare AI" },
       { property: "og:description", content: "Reach our team." },
+      { property: "og:url", content: "https://harmony-forge-nexus.lovable.app/contact" },
     ],
+    links: [{ rel: "canonical", href: "https://harmony-forge-nexus.lovable.app/contact" }],
   }),
   component: ContactPage,
 });

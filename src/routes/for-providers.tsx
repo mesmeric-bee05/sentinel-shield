@@ -9,7 +9,9 @@ export const Route = createFileRoute("/for-providers")({
       { name: "description", content: "AI-driven scheduling, ambient notes, telemedicine, and operations intelligence for clinics, hospitals, and provider networks." },
       { property: "og:title", content: "ApexCare AI for Providers" },
       { property: "og:description", content: "Reclaim clinical time. Lower no-shows. Run on a real platform." },
+      { property: "og:url", content: "https://harmony-forge-nexus.lovable.app/for-providers" },
     ],
+    links: [{ rel: "canonical", href: "https://harmony-forge-nexus.lovable.app/for-providers" }],
   }),
   component: () => (
     <div className="min-h-screen">

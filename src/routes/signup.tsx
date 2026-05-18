@@ -10,7 +10,16 @@ import { Label } from "@/components/ui/label";
 import { AuthShell } from "./login";
 
 export const Route = createFileRoute("/signup")({
-  head: () => ({ meta: [{ title: "Create your account — ApexCare AI" }, { name: "description", content: "Join ApexCare AI in under a minute." }] }),
+  head: () => ({
+    meta: [
+      { title: "Create your account — ApexCare AI" },
+      { name: "description", content: "Create a free ApexCare AI account to book care in one sentence, attend telemedicine visits, and manage your health on the AI Healthcare Operating System." },
+      { property: "og:title", content: "Create your ApexCare AI account" },
+      { property: "og:description", content: "Free to start. Book care in one sentence, attend telemedicine visits, and manage health on the AI Healthcare OS." },
+      { property: "og:url", content: "https://harmony-forge-nexus.lovable.app/signup" },
+    ],
+    links: [{ rel: "canonical", href: "https://harmony-forge-nexus.lovable.app/signup" }],
+  }),
   component: SignupPage,
 });
 

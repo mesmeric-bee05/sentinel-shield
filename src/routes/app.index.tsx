@@ -8,7 +8,15 @@ import { PageHeader } from "./app";
 import { ContactPreferencesCard } from "@/components/profile/ContactPreferencesCard";
 
 export const Route = createFileRoute("/app/")({
-  head: () => ({ meta: [{ title: "Overview — ApexCare AI" }] }),
+  head: () => ({
+    meta: [
+      { title: "Dashboard — ApexCare AI" },
+      { name: "description", content: "Your personal ApexCare AI overview — upcoming visits, recent bookings, AI assistance status, and contact preferences." },
+      { property: "og:title", content: "ApexCare AI Dashboard" },
+      { property: "og:description", content: "Your authenticated ApexCare AI workspace overview." },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: Overview,
 });
 

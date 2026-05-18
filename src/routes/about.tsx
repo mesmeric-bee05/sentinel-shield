@@ -8,7 +8,9 @@ export const Route = createFileRoute("/about")({
       { name: "description", content: "ApexCare AI is building the AI-Powered Healthcare Operating System: one platform for scheduling, telemedicine, clinical AI, and operations." },
       { property: "og:title", content: "About ApexCare AI" },
       { property: "og:description", content: "Our mission is to eliminate fragmentation in healthcare." },
+      { property: "og:url", content: "https://harmony-forge-nexus.lovable.app/about" },
     ],
+    links: [{ rel: "canonical", href: "https://harmony-forge-nexus.lovable.app/about" }],
   }),
   component: () => (
     <div className="min-h-screen">

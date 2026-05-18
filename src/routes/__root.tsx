@@ -30,8 +30,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "ApexCare AI — The AI-Powered Healthcare Operating System" },
-      { name: "description", content: "ApexCare AI unifies scheduling, telemedicine, clinical AI, and Zero-Trust security into a single intelligent platform for patients, providers, and health systems." },
+      { name: "description", content: "ApexCare AI unifies scheduling, telemedicine, clinical AI, and Zero-Trust security into one platform for patients, providers, and health systems." },
       { name: "author", content: "ApexCare AI" },
       { property: "og:title", content: "ApexCare AI — The AI-Powered Healthcare Operating System" },
       { property: "og:description", content: "ApexCare AI unifies scheduling, telemedicine, clinical AI, and Zero-Trust security into a single intelligent platform for patients, providers, and health systems." },
