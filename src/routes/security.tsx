@@ -9,7 +9,9 @@ export const Route = createFileRoute("/security")({
       { name: "description", content: "Zero-Trust architecture, Row-Level Security, server-side secrets, leaked-password defense, immutable audit ledger." },
       { property: "og:title", content: "ApexCare AI Security Architecture" },
       { property: "og:description", content: "Hospital-grade security as foundation, not feature." },
+      { property: "og:url", content: "https://harmony-forge-nexus.lovable.app/security" },
     ],
+    links: [{ rel: "canonical", href: "https://harmony-forge-nexus.lovable.app/security" }],
   }),
   component: SecurityPage,
 });

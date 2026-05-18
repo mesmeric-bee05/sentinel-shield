@@ -9,7 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Sign in — ApexCare AI" }, { name: "description", content: "Sign in to your ApexCare AI workspace." }] }),
+  head: () => ({
+    meta: [
+      { title: "Sign in — ApexCare AI" },
+      { name: "description", content: "Sign in to your ApexCare AI workspace to access scheduling, telemedicine visits, ambient clinical notes, and your patient or provider dashboard." },
+      { property: "og:title", content: "Sign in — ApexCare AI" },
+      { property: "og:description", content: "Access your secure ApexCare AI workspace — appointments, telemedicine, and clinical AI tools in one place." },
+      { property: "og:url", content: "https://harmony-forge-nexus.lovable.app/login" },
+    ],
+    links: [{ rel: "canonical", href: "https://harmony-forge-nexus.lovable.app/login" }],
+  }),
   component: LoginPage,
 });
 

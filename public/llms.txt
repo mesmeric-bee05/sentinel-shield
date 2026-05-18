@@ -1,0 +1,18 @@
+# ApexCare AI
+
+> The AI-Powered Healthcare Operating System — unifying scheduling, telemedicine, ambient clinical AI, and Zero-Trust security into one platform for patients, providers, and health systems.
+
+ApexCare AI eliminates fragmentation in healthcare by converging patient, provider, and administrator workflows into a single intelligent platform. It includes natural-language scheduling, predictive no-show scoring, WebRTC telemedicine, ambient SOAP note drafting, omnichannel patient agents, and a HIPAA-aligned Zero-Trust security architecture (row-level isolation, immutable audit, leaked-password defense).
+
+## Pages
+
+- [Home](/): Product overview, pillars, and how AI scheduling works.
+- [For Providers](/for-providers): Clinician workspace, predictive no-show, operations console.
+- [Security](/security): Zero-Trust architecture, RLS, audit ledger, compliance roadmap.
+- [About](/about): Mission and team behind ApexCare AI.
+- [Contact](/contact): Talk to the team about deployment.
+
+## Optional
+
+- [Sign in](/login): Authenticated workspace entry.
+- [Create account](/signup): Free signup for patients and providers.
