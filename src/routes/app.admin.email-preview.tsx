@@ -52,7 +52,7 @@ function EmailPreviewPage() {
     const r = await renderFn({ data: { templateName: active, data: parsed } });
     setLoading(false);
     if ("error" in r && r.error) { setErr(r.error); return; }
-    setRendered({ html: r.html, text: r.text, subject: r.subject });
+    setRendered({ html: r.html ?? "", text: r.text ?? "", subject: r.subject ?? "" });
   };
 
   useEffect(() => { if (active) run(); /* eslint-disable-next-line */ }, [active]);
