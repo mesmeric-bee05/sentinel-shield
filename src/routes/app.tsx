@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Activity, Bell, Calendar, FileSearch, LayoutDashboard, LogOut, Mail, Map, MessageSquare, Search, ShieldCheck, Stethoscope, UserCog, Users, UsersRound, Video } from "lucide-react";
+import { Activity, Bell, Calendar, FileSearch, Gauge, LayoutDashboard, LogOut, Mail, MailCheck, Map, MessageSquare, Search, ShieldCheck, Stethoscope, UserCog, Users, UsersRound, Video } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,9 @@ function AppShell() {
     { to: "/app/admin/audit", label: "Audit log", icon: FileSearch, show: isAdmin },
     { to: "/app/admin/notifications", label: "Notifications", icon: Bell, show: isAdmin },
     { to: "/app/admin/notifications/resend", label: "Resend email", icon: Mail, show: isAdmin },
+    { to: "/app/admin/email-health", label: "Email health", icon: MailCheck, show: isAdmin },
+    { to: "/app/admin/email-preview", label: "Email sandbox", icon: Mail, show: isAdmin },
+    { to: "/app/admin/seo-audit", label: "SEO audit", icon: Gauge, show: isAdmin },
     { to: "/app/admin/test/sms", label: "SMS test", icon: MessageSquare, show: isAdmin },
     { to: "/app/admin/roles", label: "Roles", icon: UserCog, show: isAdmin },
   ].filter((n) => n.show !== false);

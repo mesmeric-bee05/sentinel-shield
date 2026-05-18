@@ -1,7 +1,8 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Mail, RefreshCw, Search, Send, ShieldAlert, ArrowLeft } from "lucide-react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +11,15 @@ import { toast } from "sonner";
 import { getBookingEmailHistory, resendBookingConfirmation } from "@/server/notifications.resend.functions";
 import { PageHeader } from "./app";
 
+const SearchSchema = z.object({ id: z.string().optional() });
+
 export const Route = createFileRoute("/app/admin/notifications/resend")({
+  validateSearch: (s) => SearchSchema.parse(s),
   beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) throw redirect({ to: "/login" });
   },
-  head: () => ({ meta: [{ title: "Resend booking email — ApexCare AI" }] }),
+  head: () => ({ meta: [{ title: "Resend booking email — ApexCare AI" }, { name: "robots", content: "noindex" }] }),
   component: ResendPage,
 });
 
@@ -35,14 +39,30 @@ const tone: Record<string, string> = {
 };
 
 function ResendPage() {
+  const search = Route.useSearch();
   const lookup = useServerFn(getBookingEmailHistory);
   const resend = useServerFn(resendBookingConfirmation);
-  const [appointmentId, setAppointmentId] = useState("");
+  const [appointmentId, setAppointmentId] = useState(search.id ?? "");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [data, setData] = useState<Loaded | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    if (search.id && /^[0-9a-f-]{36}$/i.test(search.id)) {
+      setAppointmentId(search.id);
+      // auto-trigger lookup once
+      (async () => {
+        setLoading(true);
+        const r = await lookup({ data: { appointmentId: search.id! } });
+        setLoading(false);
+        if ("error" in r && r.error === "Forbidden") setForbidden(true);
+        else setData(r as Loaded);
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onLookup = async () => {
     const id = appointmentId.trim();
