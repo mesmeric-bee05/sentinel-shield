@@ -70,9 +70,9 @@ export function AuthShell({ title, sub, children }: { title: string; sub: string
           </Link>
           <div>
             <div className="font-serif text-4xl leading-tight max-w-md text-balance">"The single intelligent platform where every healthcare workflow converges."</div>
-            <div className="mt-6 text-sm text-white/60">— ApexCare AI mission</div>
+            <div className="mt-6 text-sm text-white/80">— ApexCare AI mission</div>
           </div>
-          <div className="text-xs text-white/40 uppercase tracking-wider">HIPAA-aligned · Zero-Trust · AI-native</div>
+          <div className="text-xs text-white/70 uppercase tracking-wider">HIPAA-aligned · Zero-Trust · AI-native</div>
         </div>
       </div>
       <div className="flex items-center justify-center p-6 sm:p-12 bg-background">

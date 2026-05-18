@@ -82,7 +82,7 @@ function Hero() {
               <Link to="/for-providers">For health systems</Link>
             </Button>
           </div>
-          <div className="mt-12 flex flex-wrap gap-x-8 gap-y-3 text-xs uppercase tracking-wider text-white/50">
+          <div className="mt-12 flex flex-wrap gap-x-8 gap-y-3 text-xs uppercase tracking-wider text-white/75">
             <span className="inline-flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-accent" /> HIPAA-aligned</span>
             <span className="inline-flex items-center gap-2"><Lock className="w-3.5 h-3.5 text-accent" /> Zero-Trust</span>
             <span className="inline-flex items-center gap-2"><Brain className="w-3.5 h-3.5 text-accent" /> AI-native</span>
@@ -263,7 +263,7 @@ function SecuritySection() {
             <div key={s.t} className="p-5 rounded-xl border border-white/10 bg-white/5 backdrop-blur">
               <s.i className="w-5 h-5 text-accent" />
               <div className="mt-3 font-medium">{s.t}</div>
-              <div className="text-xs text-white/60 mt-1">{s.d}</div>
+              <div className="text-xs text-white/80 mt-1">{s.d}</div>
             </div>
           ))}
         </div>

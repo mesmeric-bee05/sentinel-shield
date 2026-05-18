@@ -49,14 +49,14 @@ function AppShell() {
           <div className="w-9 h-9 rounded-lg bg-accent text-accent-foreground grid place-items-center"><Activity className="w-5 h-5" /></div>
           <div>
             <div className="font-serif text-base leading-none">ApexCare<span className="text-accent">.</span>AI</div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/60">Workspace</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/85">Workspace</div>
           </div>
         </Link>
         <nav className="flex-1 p-3 space-y-1">
           {nav.map((n) => {
             const active = n.exact ? path === n.to : path.startsWith(n.to);
             return (
-              <Link key={n.to} to={n.to} className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition ${active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"}`}>
+              <Link key={n.to} to={n.to} className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition ${active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"}`}>
                 <n.icon className="w-4 h-4" /> {n.label}
               </Link>
             );
@@ -71,7 +71,7 @@ function AppShell() {
               ))}
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" onClick={signOut}>
+          <Button variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" onClick={signOut}>
             <LogOut className="w-4 h-4 mr-2" /> Sign out
           </Button>
         </div>
