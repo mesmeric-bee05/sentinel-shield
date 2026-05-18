@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Activity, Bell, Calendar, FileSearch, LayoutDashboard, LogOut, Mail, Map, MessageSquare, Search, ShieldCheck, Stethoscope, UserCog, Users, UsersRound, Video } from "lucide-react";
+import { Activity, Bell, Calendar, FileSearch, Gauge, LayoutDashboard, LogOut, Mail, MailCheck, Map, MessageSquare, Search, ShieldCheck, Stethoscope, UserCog, Users, UsersRound, Video } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,9 @@ function AppShell() {
     { to: "/app/admin/audit", label: "Audit log", icon: FileSearch, show: isAdmin },
     { to: "/app/admin/notifications", label: "Notifications", icon: Bell, show: isAdmin },
     { to: "/app/admin/notifications/resend", label: "Resend email", icon: Mail, show: isAdmin },
+    { to: "/app/admin/email-health", label: "Email health", icon: MailCheck, show: isAdmin },
+    { to: "/app/admin/email-preview", label: "Email sandbox", icon: Mail, show: isAdmin },
+    { to: "/app/admin/seo-audit", label: "SEO audit", icon: Gauge, show: isAdmin },
     { to: "/app/admin/test/sms", label: "SMS test", icon: MessageSquare, show: isAdmin },
     { to: "/app/admin/roles", label: "Roles", icon: UserCog, show: isAdmin },
   ].filter((n) => n.show !== false);
@@ -49,14 +52,14 @@ function AppShell() {
           <div className="w-9 h-9 rounded-lg bg-accent text-accent-foreground grid place-items-center"><Activity className="w-5 h-5" /></div>
           <div>
             <div className="font-serif text-base leading-none">ApexCare<span className="text-accent">.</span>AI</div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/60">Workspace</div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/85">Workspace</div>
           </div>
         </Link>
         <nav className="flex-1 p-3 space-y-1">
           {nav.map((n) => {
             const active = n.exact ? path === n.to : path.startsWith(n.to);
             return (
-              <Link key={n.to} to={n.to} className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition ${active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"}`}>
+              <Link key={n.to} to={n.to} className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition ${active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"}`}>
                 <n.icon className="w-4 h-4" /> {n.label}
               </Link>
             );
@@ -71,7 +74,7 @@ function AppShell() {
               ))}
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" onClick={signOut}>
+          <Button variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" onClick={signOut}>
             <LogOut className="w-4 h-4 mr-2" /> Sign out
           </Button>
         </div>

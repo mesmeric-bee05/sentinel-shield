@@ -120,11 +120,11 @@ function Room() {
         <div className="flex items-center gap-3">
           <Activity className="w-5 h-5 text-accent" />
           <div>
-            <div className="text-xs uppercase tracking-[0.18em] text-sidebar-foreground/60">Telemedicine room</div>
+            <div className="text-xs uppercase tracking-[0.18em] text-sidebar-foreground/85">Telemedicine room</div>
             <div className="font-serif">{appt?.provider?.display_name ?? "Loading…"}</div>
           </div>
         </div>
-        <div className="text-xs inline-flex items-center gap-2 text-sidebar-foreground/70"><ShieldCheck className="w-3.5 h-3.5 text-accent" /> Encrypted in transit · Audit-logged</div>
+        <div className="text-xs inline-flex items-center gap-2 text-sidebar-foreground/85"><ShieldCheck className="w-3.5 h-3.5 text-accent" /> Encrypted in transit · Audit-logged</div>
       </header>
 
       <div className="flex-1 grid lg:grid-cols-[1fr_380px] gap-0">
@@ -133,13 +133,13 @@ function Room() {
           <div className="relative z-10 text-center text-white/70">
             <div className="w-24 h-24 rounded-full bg-white/5 grid place-items-center mx-auto mb-4 backdrop-blur"><Video className="w-10 h-10" /></div>
             <p className="font-serif text-xl text-white/90">Waiting for the other participant…</p>
-            <p className="text-xs mt-1 text-white/50">Phase 2 shell — full WebRTC peering ships in Phase 3.</p>
+            <p className="text-xs mt-1 text-white/75">Phase 2 shell — full WebRTC peering ships in Phase 3.</p>
           </div>
 
           {/* Local PiP */}
           <div className="absolute bottom-6 right-6 w-56 aspect-video rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-black z-20">
             <video ref={videoRef} muted playsInline className="w-full h-full object-cover" />
-            {!camOn && <div className="absolute inset-0 grid place-items-center bg-black/80 text-white/60 text-xs">Camera off</div>}
+            {!camOn && <div className="absolute inset-0 grid place-items-center bg-black/80 text-white/80 text-xs">Camera off</div>}
           </div>
 
           {/* Controls */}
