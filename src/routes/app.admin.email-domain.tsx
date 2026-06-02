@@ -62,8 +62,8 @@ function EmailDomainWizard() {
     if (!domain) return;
     const r = await checkFn({ data: { domain } });
     if (r.error) { toast.error(r.error); return; }
-    setChecks(r.checks as DnsCheck[]);
-    setAllPass(r.allPass);
+    setChecks((r.checks ?? []) as DnsCheck[]);
+    setAllPass(!!r.allPass);
     if (r.allPass) setPolling(false);
   };
 
