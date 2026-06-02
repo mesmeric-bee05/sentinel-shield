@@ -1,111 +1,63 @@
-# ApexCare AI — Notifications hardening & next-phase rollout
 
-## 0. Important note on the sender address
+## Goal
 
-`apexcare329@gmail.com` **cannot** be used as a transactional sender. Lovable Emails (and every reputable provider) requires a domain you control so we can publish SPF / DKIM / DMARC records — Gmail's domain is locked down by Google and will be rejected by every receiving server. To unblock you today I will:
+Wire the existing email + SEO surfaces into a single, guided flow so an admin can: (1) verify a sender domain end-to-end with live DKIM/SPF/DMARC status, (2) authorize Google Search Console and push the sitemap from inside the app, and (3) see a stronger pass/fail SEO checklist. The `/app/admin/seo-audit` and `/app/admin/email-health` pages already exist — this plan extends them and adds a new wizard route.
 
-1. Use Lovable's built-in **sandbox sender** (`notify.lovable.app`) so booking confirmations start flowing immediately to any inbox, *including* `apexcare329@gmail.com` as the **reply-to** so patient replies land in your Gmail.
-2. Surface a one-click **"Set up sender domain"** action so the moment you point a domain (e.g. `apexcare.ai` or `notify.apexcare.ai`) at us, we flip the From address with zero code changes.
+## What gets built
 
-If you don't own a domain yet, the cheapest path is buying one (~$12/yr) — I'll wire DNS for you when you do.
+### 1. Sender-domain setup wizard — `/app/admin/email-domain`
+A 4-step wizard that wraps the Lovable email-domain tooling and the existing sandbox-preview page so admins move from "no domain" → "real delivery" without leaving the app.
 
----
+Steps:
+1. **Choose subdomain** (e.g. `notify.apexcare.ai`) — opens the Lovable email-setup dialog via `<presentation-open-email-setup>`.
+2. **DNS records** — pulls the records (NS / SPF / DKIM / DMARC) from `email_domain--check_email_domain_status` and renders each with a copy button.
+3. **Live verification** — auto-polls a new server fn `getEmailDomainStatus` every 8s; shows per-record status badges (Pending / Verifying / Verified / Failed) plus an overall progress bar. Stops polling once `active` or after 10 min.
+4. **Activate real delivery** — once `active`, flips a `delivery_mode` row in a new `email_settings` table from `sandbox` → `live`. `bookAppointment` already enqueues to the notification pipeline; it reads `email_settings.delivery_mode` and, in sandbox, writes `email.sandbox_preview` audit events instead of calling the queue. Toggling here switches future bookings to real sends automatically — no code edit needed.
 
-## 1. Email infrastructure & booking-confirmation template
+### 2. Google Search Console integration — `/app/admin/seo/gsc`
+- Uses the existing `google_search_console` connector via `standard_connectors--connect` from the UI (link button surfaces the connection picker).
+- Server fn `verifyAndSubmitSite` runs the META-token flow against the connector gateway:
+  1. Inject the Google site-verification `<meta>` tag into `__root.tsx` head via a small `gscToken` row in the new `seo_settings` table (so it ships on the next publish without a code edit per token).
+  2. POST `/siteVerification/v1/token` → store token → prompt user to **Republish**.
+  3. After republish, POST `/siteVerification/v1/webResource?verificationMethod=META` to verify, then `PUT /webmasters/v3/sites/<encoded url>` to add the property, then submit the sitemap via `PUT /webmasters/v3/sites/<url>/sitemaps/<sitemap-url>`.
+- Page shows: connection state, token status, verification status, sitemap submission status, last submitted timestamp.
 
-- Provision Lovable Cloud email infra (pgmq queues, `email_send_log`, `suppressed_emails`, `email_unsubscribe_tokens`, `process-email-queue` cron, vault secret).
-- Scaffold transactional pipeline + `/lovable/email/transactional/send` route — this is the queue/worker/retry layer (5 attempts, exponential backoff, DLQ, 60-min TTL, rate-limit aware).
-- Create React Email template `src/lib/email-templates/booking-confirmation.tsx` matching ApexCare's serif/accent design system. Props: `patientName, providerName, specialty, whenLocal, whenUtc, channel, location, roomUrl, appointmentUrl, reason, aiSummary, icsUrl`.
-- Register in `registry.ts` with realistic `previewData`.
-- Replace the current ad-hoc `fetch` in `appointments.functions.ts → sendBookingNotifications` with the canonical `sendTransactionalEmail` helper + `idempotencyKey: booking-confirm-<appointmentId>`.
-- Audit events: keep `email.queued / email.sent / email.failed` writes; add `email.retried` from the worker.
+### 3. SEO audit upgrade — `/app/admin/seo-audit`
+Extend the existing page:
+- Replace ad-hoc fetch checks with a typed `runSeoAudit` server fn that returns a structured `{ id, label, category, status, detail, severity }[]`.
+- Add categories: **Meta**, **Open Graph**, **JSON-LD**, **Sitemap/robots**, **GSC**, **Lighthouse**.
+- GSC row reads live state from the `seo_settings` table + a gateway call to confirm the property is still verified.
+- Lighthouse row pings the published URL's PageSpeed Insights API (no key needed for the free tier) and surfaces the contrast + performance score.
+- Big **Rerun audit** button (already present) is kept; add per-row "Recheck" affordance and a top-of-page pass/fail summary (`x of y passing`).
 
-## 2. Admin "Resend & preview" page
+## Technical details
 
-New route `/app/admin/notifications/resend` (admin-only, `has_role('admin')` gate):
+**New files**
+- `src/routes/app.admin.email-domain.tsx` — wizard UI.
+- `src/routes/app.admin.seo.gsc.tsx` — GSC flow UI.
+- `src/server/email-domain.functions.ts` — `getEmailDomainStatus`, `setDeliveryMode`. Wraps `email_domain--check_email_domain_status` results into a serializable shape for the client poller.
+- `src/server/seo.functions.ts` — `runSeoAudit`, `getGscState`, `requestGscToken`, `verifyAndSubmitSite`.
+- `supabase/migrations/<ts>_email_seo_settings.sql` — creates:
+  - `public.email_settings(id int pk default 1, delivery_mode text check in ('sandbox','live') default 'sandbox', sender_domain text, updated_at timestamptz)`
+  - `public.seo_settings(id int pk default 1, gsc_meta_token text, gsc_verified_at timestamptz, gsc_sitemap_submitted_at timestamptz, updated_at timestamptz)`
+  - `GRANT`s + RLS: admin-only via `has_role(auth.uid(),'admin')`; `service_role` full access.
 
-- **Lookup** by appointment ID or patient email → shows appointment summary + recipient + every `email_send_log` row for that booking (status badge, attempts, last error, message_id, timestamps) deduped by `message_id`.
-- **Live preview** pane rendering the React Email template with the real appointment data via `/lovable/email/transactional/preview`.
-- **Resend** button → server fn `resendBookingConfirmation({ appointmentId })`:
-  - Verifies admin, re-enqueues with a fresh idempotency key (`booking-confirm-<id>-resend-<timestamp>`),
-  - Writes `audit_events` action `email.resent` with admin actor, original message_id, reason text (optional textarea).
-- Inline error surface if recipient is in `suppressed_emails` (with the suppression reason and an explainer — never auto-bypass).
-- Add link from existing `/app/admin/notifications` rows → "Open in resend tool".
+**Edits**
+- `src/routes/__root.tsx` head() — read `seo_settings.gsc_meta_token` at SSR via a tiny loader and inject `<meta name="google-site-verification">` when present.
+- `src/server/appointments.functions.ts` — branch on `email_settings.delivery_mode` (sandbox → audit only, live → enqueue). Today's behavior already audits; this only adds the real-send branch.
+- `src/routes/app.tsx` sidebar — add "Email domain" and "Search Console" entries under the existing admin section.
+- `src/routes/app.admin.seo-audit.tsx` — swap to the new server fn, add categories + per-row recheck.
 
-## 3. Guided SMS test flow
+**Connectors / secrets**
+- Triggers `standard_connectors--connect` for `google_search_console` only when the admin clicks "Connect" on the GSC page.
+- No new user-supplied secrets. Lovable Email and GSC connector handle credentials.
 
-New route `/app/admin/test/sms` (admin-only) that walks through:
+**Out of scope** (call out, don't build)
+- Custom DMARC policy editor — surface the recommended record only.
+- Per-record DNS auto-fix at the registrar — Lovable's NS delegation already handles records once NS is set.
+- Lighthouse historical tracking — only the current score is shown.
 
-1. **Pre-flight checks** (✓/✗ cards): `TWILIO_API_KEY` present, `TWILIO_FROM_NUMBER` present, current user's `profiles.phone_e164` set, `sms_opt_in = true`. Inline fixers for the last two (calls existing `updateContactPreferences`).
-2. **"Open booking flow"** button → `/app/discover` with a query param that pre-checks the SMS opt-in box in `BookingDialog` and tags the booking meta `{ test_run: true }`.
-3. **Live audit poller** — after returning, the page polls `audit_events` (filtered by `actor_id = me, action LIKE 'sms.%'`, last 5 min) every 2s for up to 60s.
-4. **Result panel** showing `sms.sent` (green) with Twilio SID + status code, or `sms.failed/sms.skipped` (red) with the exact reason from `meta`. Deep-links to `/app/admin/notifications` filtered to that appointment.
+## Open questions
 
-## 4. Security hardening pass (expert review)
-
-- Add RLS regression tests query in plan: ensure `audit_events` remains INSERT-only for service role, never UPDATE/DELETE.
-- Lock down new `resendBookingConfirmation` server fn behind `requireSupabaseAuth` + explicit `has_role` check (defence in depth — don't trust route-level only).
-- Verify `email_unsubscribe_tokens` table never leaks tokens via RLS to authenticated users.
-- Run `supabase--linter` after migration and fix every warning before closing the task.
-- Update `mem://security` with: "Resend endpoints must re-check admin role server-side; suppression list is never bypassable."
-
-## 5. Blueprint extraction → backlog (not built this turn)
-
-I parsed the two uploaded docs. Below is what's already shipped vs. what remains. **I will NOT scaffold all of these in this turn** — half-built modules are worse than none. I'll list them as tracked tasks and we pick the next one after this turn lands.
-
-**Already shipped:** auth + RLS, role requests/approvals, providers + availability, slot holds with advisory locks, booking + ICS, telemedicine room shell, AI scribe stub, audit log + admin viewer, Geo-Intelligence, CHW Mesh, notifications audit, Twilio SMS.
-
-**Remaining (prioritised):**
-1. **Booking emails (this turn).**
-2. Predictive no-show ML stub (rule-based v1, swap to model later).
-3. Omnichannel agent — WhatsApp/voice intake (needs Twilio WA sandbox + a connector decision).
-4. Ambient AI clinical scribe upgrade (real Whisper + Gemini summarisation via Lovable AI).
-5. Patient sentiment NLP on post-visit feedback (Gemini Flash).
-6. Wearable Guardian (needs HSM/KMS + device SDK certs — blocked on partnerships).
-7. Blockchain audit anchor (hash-chain `audit_events` daily → cheap L2 anchor; defer until partnerships).
-8. WebAuthn/FIDO2 step-up auth for admin actions.
-9. PWA + offline sync.
-
----
-
-## Technical details (for engineers)
-
-**Files to create**
-- `src/lib/email-templates/booking-confirmation.tsx`
-- `src/lib/email-templates/registry.ts` (or update if scaffold creates it)
-- `src/lib/email/send.ts` — `sendTransactionalEmail` helper
-- `src/routes/app.admin.notifications.resend.tsx`
-- `src/routes/app.admin.test.sms.tsx`
-- `src/server/notifications.resend.functions.ts` — `resendBookingConfirmation`, `getBookingEmailHistory`, `previewBookingEmail`
-
-**Files to edit**
-- `src/server/appointments.functions.ts` — swap inline `fetch` for `sendTransactionalEmail`, add `templateData` for ICS link.
-- `src/components/booking/BookingDialog.tsx` — read `?test=sms` param to pre-check opt-in and tag meta.
-- `src/routes/app.tsx` — add "Resend" + "SMS test" sidebar links (admin-only).
-- `src/routes/app.admin.notifications.tsx` — per-row "Resend" link.
-
-**Migrations**
-- None for emails (handled by setup tool).
-- One small migration to add partial index `audit_events (actor_id, created_at)` filtered to `action LIKE 'sms.%'` to make the poller cheap.
-
-**Tools called this turn (in order)**
-1. `email_domain--check_email_domain_status`
-2. `email_domain--setup_email_infra`
-3. `email_domain--scaffold_transactional_email`
-4. `supabase--migration` (audit index)
-5. Code edits + new routes
-6. `supabase--linter` → fix
-7. `stack_modern--invoke-server-function` to smoke-test resend
-8. `security--update_memory`
-
-**Acceptance criteria**
-- Booking from `/app/discover` produces `email.queued` then `email.sent` within 10s, visible in `/app/admin/notifications`.
-- Admin can preview the exact rendered email for any past appointment and resend it; resend produces a new `email.sent` row + `email.resent` audit entry.
-- Guided SMS test page reaches green `sms.sent` with Twilio SID surfaced.
-- `supabase--linter` returns zero warnings introduced by this turn.
-
----
-
-**Confirm two things before I implement:**
-1. OK to start with Lovable's sandbox sender (with `apexcare329@gmail.com` as reply-to) until you provide a domain?
-2. After this turn lands, which item from the "Remaining" list do you want next — no-show ML, omnichannel agent, or ambient scribe upgrade?
+1. For the GSC sitemap submission, should I also schedule a daily resubmit (via a `/api/public/cron/*` endpoint) or is one-shot on-publish enough?
+2. Once `delivery_mode='live'`, do you want a per-template kill switch (e.g. pause booking emails while keeping auth emails live), or is the global flag fine for v1?

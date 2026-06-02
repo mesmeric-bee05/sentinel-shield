@@ -279,6 +279,27 @@ export type Database = {
         }
         Relationships: []
       }
+      email_settings: {
+        Row: {
+          delivery_mode: string
+          id: number
+          sender_domain: string | null
+          updated_at: string
+        }
+        Insert: {
+          delivery_mode?: string
+          id?: number
+          sender_domain?: string | null
+          updated_at?: string
+        }
+        Update: {
+          delivery_mode?: string
+          id?: number
+          sender_domain?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -434,6 +455,33 @@ export type Database = {
           requested_role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["role_request_status"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      seo_settings: {
+        Row: {
+          gsc_meta_token: string | null
+          gsc_site_url: string | null
+          gsc_sitemap_submitted_at: string | null
+          gsc_verified_at: string | null
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          gsc_meta_token?: string | null
+          gsc_site_url?: string | null
+          gsc_sitemap_submitted_at?: string | null
+          gsc_verified_at?: string | null
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          gsc_meta_token?: string | null
+          gsc_site_url?: string | null
+          gsc_sitemap_submitted_at?: string | null
+          gsc_verified_at?: string | null
+          id?: number
+          updated_at?: string
         }
         Relationships: []
       }

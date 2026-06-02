@@ -40,7 +40,9 @@ function AppShell() {
     { to: "/app/admin/notifications/resend", label: "Resend email", icon: Mail, show: isAdmin },
     { to: "/app/admin/email-health", label: "Email health", icon: MailCheck, show: isAdmin },
     { to: "/app/admin/email-preview", label: "Email sandbox", icon: Mail, show: isAdmin },
+    { to: "/app/admin/email-domain", label: "Email domain", icon: ShieldCheck, show: isAdmin },
     { to: "/app/admin/seo-audit", label: "SEO audit", icon: Gauge, show: isAdmin },
+    { to: "/app/admin/seo/gsc", label: "Search Console", icon: Gauge, show: isAdmin },
     { to: "/app/admin/test/sms", label: "SMS test", icon: MessageSquare, show: isAdmin },
     { to: "/app/admin/roles", label: "Roles", icon: UserCog, show: isAdmin },
   ].filter((n) => n.show !== false);
