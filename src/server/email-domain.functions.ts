@@ -38,7 +38,7 @@ export const saveEmailDomainSettings = createServerFn({ method: "POST" })
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) return { error: "Forbidden" as const };
 
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const patch: { sender_domain?: string | null; delivery_mode?: "sandbox" | "live"; updated_at: string } = { updated_at: new Date().toISOString() };
     if (data.senderDomain !== undefined) patch.sender_domain = data.senderDomain;
     if (data.deliveryMode !== undefined) patch.delivery_mode = data.deliveryMode;
 
