@@ -32,9 +32,11 @@ import { Route as AppAdminNotificationsRouteImport } from './routes/app.admin.no
 import { Route as AppAdminGeoRouteImport } from './routes/app.admin.geo'
 import { Route as AppAdminEmailPreviewRouteImport } from './routes/app.admin.email-preview'
 import { Route as AppAdminEmailHealthRouteImport } from './routes/app.admin.email-health'
+import { Route as AppAdminEmailDomainRouteImport } from './routes/app.admin.email-domain'
 import { Route as AppAdminChwRouteImport } from './routes/app.admin.chw'
 import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
 import { Route as AppAdminTestSmsRouteImport } from './routes/app.admin.test.sms'
+import { Route as AppAdminSeoGscRouteImport } from './routes/app.admin.seo.gsc'
 import { Route as AppAdminNotificationsResendRouteImport } from './routes/app.admin.notifications.resend'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -152,6 +154,11 @@ const AppAdminEmailHealthRoute = AppAdminEmailHealthRouteImport.update({
   path: '/email-health',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminEmailDomainRoute = AppAdminEmailDomainRouteImport.update({
+  id: '/email-domain',
+  path: '/email-domain',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminChwRoute = AppAdminChwRouteImport.update({
   id: '/chw',
   path: '/chw',
@@ -165,6 +172,11 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
 const AppAdminTestSmsRoute = AppAdminTestSmsRouteImport.update({
   id: '/test/sms',
   path: '/test/sms',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSeoGscRoute = AppAdminSeoGscRouteImport.update({
+  id: '/seo/gsc',
+  path: '/seo/gsc',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminNotificationsResendRoute =
@@ -193,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
+  '/app/admin/email-domain': typeof AppAdminEmailDomainRoute
   '/app/admin/email-health': typeof AppAdminEmailHealthRoute
   '/app/admin/email-preview': typeof AppAdminEmailPreviewRoute
   '/app/admin/geo': typeof AppAdminGeoRoute
@@ -201,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
   '/app/admin/notifications/resend': typeof AppAdminNotificationsResendRoute
+  '/app/admin/seo/gsc': typeof AppAdminSeoGscRoute
   '/app/admin/test/sms': typeof AppAdminTestSmsRoute
 }
 export interface FileRoutesByTo {
@@ -221,6 +235,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
+  '/app/admin/email-domain': typeof AppAdminEmailDomainRoute
   '/app/admin/email-health': typeof AppAdminEmailHealthRoute
   '/app/admin/email-preview': typeof AppAdminEmailPreviewRoute
   '/app/admin/geo': typeof AppAdminGeoRoute
@@ -229,6 +244,7 @@ export interface FileRoutesByTo {
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
   '/app/admin/notifications/resend': typeof AppAdminNotificationsResendRoute
+  '/app/admin/seo/gsc': typeof AppAdminSeoGscRoute
   '/app/admin/test/sms': typeof AppAdminTestSmsRoute
 }
 export interface FileRoutesById {
@@ -251,6 +267,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
+  '/app/admin/email-domain': typeof AppAdminEmailDomainRoute
   '/app/admin/email-health': typeof AppAdminEmailHealthRoute
   '/app/admin/email-preview': typeof AppAdminEmailPreviewRoute
   '/app/admin/geo': typeof AppAdminGeoRoute
@@ -259,6 +276,7 @@ export interface FileRoutesById {
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
   '/app/admin/notifications/resend': typeof AppAdminNotificationsResendRoute
+  '/app/admin/seo/gsc': typeof AppAdminSeoGscRoute
   '/app/admin/test/sms': typeof AppAdminTestSmsRoute
 }
 export interface FileRouteTypes {
@@ -282,6 +300,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/admin/audit'
     | '/app/admin/chw'
+    | '/app/admin/email-domain'
     | '/app/admin/email-health'
     | '/app/admin/email-preview'
     | '/app/admin/geo'
@@ -290,6 +309,7 @@ export interface FileRouteTypes {
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
     | '/app/admin/notifications/resend'
+    | '/app/admin/seo/gsc'
     | '/app/admin/test/sms'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -310,6 +330,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/admin/audit'
     | '/app/admin/chw'
+    | '/app/admin/email-domain'
     | '/app/admin/email-health'
     | '/app/admin/email-preview'
     | '/app/admin/geo'
@@ -318,6 +339,7 @@ export interface FileRouteTypes {
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
     | '/app/admin/notifications/resend'
+    | '/app/admin/seo/gsc'
     | '/app/admin/test/sms'
   id:
     | '__root__'
@@ -339,6 +361,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/admin/audit'
     | '/app/admin/chw'
+    | '/app/admin/email-domain'
     | '/app/admin/email-health'
     | '/app/admin/email-preview'
     | '/app/admin/geo'
@@ -347,6 +370,7 @@ export interface FileRouteTypes {
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
     | '/app/admin/notifications/resend'
+    | '/app/admin/seo/gsc'
     | '/app/admin/test/sms'
   fileRoutesById: FileRoutesById
 }
@@ -525,6 +549,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminEmailHealthRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/app/admin/email-domain': {
+      id: '/app/admin/email-domain'
+      path: '/email-domain'
+      fullPath: '/app/admin/email-domain'
+      preLoaderRoute: typeof AppAdminEmailDomainRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/chw': {
       id: '/app/admin/chw'
       path: '/chw'
@@ -544,6 +575,13 @@ declare module '@tanstack/react-router' {
       path: '/test/sms'
       fullPath: '/app/admin/test/sms'
       preLoaderRoute: typeof AppAdminTestSmsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/seo/gsc': {
+      id: '/app/admin/seo/gsc'
+      path: '/seo/gsc'
+      fullPath: '/app/admin/seo/gsc'
+      preLoaderRoute: typeof AppAdminSeoGscRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/app/admin/notifications/resend': {
@@ -572,24 +610,28 @@ const AppAdminNotificationsRouteWithChildren =
 interface AppAdminRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminChwRoute: typeof AppAdminChwRoute
+  AppAdminEmailDomainRoute: typeof AppAdminEmailDomainRoute
   AppAdminEmailHealthRoute: typeof AppAdminEmailHealthRoute
   AppAdminEmailPreviewRoute: typeof AppAdminEmailPreviewRoute
   AppAdminGeoRoute: typeof AppAdminGeoRoute
   AppAdminNotificationsRoute: typeof AppAdminNotificationsRouteWithChildren
   AppAdminRolesRoute: typeof AppAdminRolesRoute
   AppAdminSeoAuditRoute: typeof AppAdminSeoAuditRoute
+  AppAdminSeoGscRoute: typeof AppAdminSeoGscRoute
   AppAdminTestSmsRoute: typeof AppAdminTestSmsRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminChwRoute: AppAdminChwRoute,
+  AppAdminEmailDomainRoute: AppAdminEmailDomainRoute,
   AppAdminEmailHealthRoute: AppAdminEmailHealthRoute,
   AppAdminEmailPreviewRoute: AppAdminEmailPreviewRoute,
   AppAdminGeoRoute: AppAdminGeoRoute,
   AppAdminNotificationsRoute: AppAdminNotificationsRouteWithChildren,
   AppAdminRolesRoute: AppAdminRolesRoute,
   AppAdminSeoAuditRoute: AppAdminSeoAuditRoute,
+  AppAdminSeoGscRoute: AppAdminSeoGscRoute,
   AppAdminTestSmsRoute: AppAdminTestSmsRoute,
 }
 

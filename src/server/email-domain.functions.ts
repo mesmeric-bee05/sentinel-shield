@@ -8,7 +8,6 @@ async function dnsLookup(name: string, type: "TXT" | "MX" | "NS" | "CNAME"): Pro
   try {
     const r = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=${type}`, {
       headers: { accept: "application/dns-json" },
-      cf: { cacheTtl: 30 } as never,
     });
     if (!r.ok) return [];
     const j = (await r.json()) as { Answer?: Array<{ data: string; type: number }> };
