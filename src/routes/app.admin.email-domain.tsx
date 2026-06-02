@@ -87,12 +87,7 @@ function EmailDomainWizard() {
             <Button onClick={saveDomain} disabled={busy || !domain}>Save</Button>
           </div>
           <div className="mt-3 text-xs text-muted-foreground">
-            Need Lovable to provision the DNS records for you? Open the email setup dialog below.
-          </div>
-          <div className="mt-2">
-            <presentation-actions>
-              <presentation-open-email-setup>Set up email domain</presentation-open-email-setup>
-            </presentation-actions>
+            Need Lovable to provision the DNS records for you? Ask the AI in chat: <em>"Set up the email sender domain for {domain || "my domain"}."</em>
           </div>
         </Step>
 
