@@ -1,6 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
+import { getSeoSettings } from "@/server/seo.functions";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -26,8 +27,16 @@ function NotFoundComponent() {
 }
 
 export const Route = createRootRoute({
-  head: () => ({
-    meta: [
+  loader: async () => {
+    try {
+      const r = await getSeoSettings();
+      return { gscToken: r.settings?.gsc_meta_token ?? null };
+    } catch {
+      return { gscToken: null };
+    }
+  },
+  head: ({ loaderData }) => {
+    const meta = [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "description", content: "ApexCare AI unifies scheduling, telemedicine, clinical AI, and Zero-Trust security into one platform for patients, providers, and health systems." },
@@ -40,14 +49,20 @@ export const Route = createRootRoute({
       { name: "twitter:description", content: "ApexCare AI unifies scheduling, telemedicine, clinical AI, and Zero-Trust security into a single intelligent platform for patients, providers, and health systems." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5aba8e04-c0fa-4289-8ed5-19a715e596db/id-preview-d090e13a--c36b93f8-430e-4f64-915c-449bf3d6eac3.lovable.app-1778065172870.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5aba8e04-c0fa-4289-8ed5-19a715e596db/id-preview-d090e13a--c36b93f8-430e-4f64-915c-449bf3d6eac3.lovable.app-1778065172870.png" },
-    ],
-    links: [
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" },
-      { rel: "stylesheet", href: appCss },
-    ],
-  }),
+    ];
+    if (loaderData?.gscToken) {
+      meta.push({ name: "google-site-verification", content: loaderData.gscToken });
+    }
+    return {
+      meta,
+      links: [
+        { rel: "preconnect", href: "https://fonts.googleapis.com" },
+        { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+        { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" },
+        { rel: "stylesheet", href: appCss },
+      ],
+    };
+  },
   shellComponent: RootShell,
   component: () => <AuthProvider><Outlet /></AuthProvider>,
   notFoundComponent: NotFoundComponent,
