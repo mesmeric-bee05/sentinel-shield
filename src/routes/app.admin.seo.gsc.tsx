@@ -24,6 +24,7 @@ function GscPage() {
   const loadFn = useServerFn(getGscState);
   const tokenFn = useServerFn(requestGscToken);
   const verifyFn = useServerFn(verifyAndSubmitSite);
+  const resubmitFn = useServerFn(resubmitSitemap);
 
   const [state, setState] = useState<State | null>(null);
   const [siteUrl, setSiteUrl] = useState("https://harmony-forge-nexus.lovable.app");
@@ -50,9 +51,13 @@ function GscPage() {
   const verify = async () => {
     setBusy(true);
     const r = await verifyFn({});
+    if (r.error) { setBusy(false); toast.error(r.error); return; }
+    // Auto-resubmit sitemap to push the freshly-deployed meta tag and clear the GSC finding.
+    const rr = await resubmitFn({});
     setBusy(false);
-    if (r.error) toast.error(r.error);
-    else { toast.success(r.sitemapSubmitted ? "Verified and sitemap submitted." : "Verified. Sitemap submission was skipped."); await load(); }
+    if (rr.error) toast.warning(`Verified, but resubmit failed: ${rr.error}`);
+    else toast.success("Verified, sitemap submitted, SEO finding cleared.");
+    await load();
   };
 
   return (
