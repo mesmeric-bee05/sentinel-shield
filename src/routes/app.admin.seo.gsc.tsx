@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getGscState, requestGscToken, verifyAndSubmitSite } from "@/server/seo.functions";
+import { getGscState, requestGscToken, verifyAndSubmitSite, resubmitSitemap } from "@/server/seo.functions";
 import { PageHeader } from "../routes/app";
 
 export const Route = createFileRoute("/app/admin/seo/gsc")({
