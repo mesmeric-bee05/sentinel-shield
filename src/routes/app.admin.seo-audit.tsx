@@ -24,17 +24,39 @@ function SeoAuditPage() {
   const [checks, setChecks] = useState<SeoCheck[]>([]);
   const [summary, setSummary] = useState<{ pass: number; warn: number; fail: number; total: number } | null>(null);
   const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [at, setAt] = useState<string | null>(null);
+  const [runCount, setRunCount] = useState(0);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const run = async () => {
     setRunning(true);
-    const r = await fn({});
-    setRunning(false);
-    setChecks(r.checks);
-    setSummary(r.summary);
-    setAt(r.generatedAt);
+    setProgress(5);
+    // Animate progress through the 6 categories so the rerun feels alive.
+    tickRef.current = setInterval(() => {
+      setProgress((p) => (p < 92 ? p + Math.max(1, Math.round((95 - p) / 8)) : p));
+    }, 250);
+    try {
+      const r = await fn({});
+      setChecks(r.checks);
+      setSummary(r.summary);
+      setAt(r.generatedAt);
+      setRunCount((n) => n + 1);
+    } finally {
+      if (tickRef.current) clearInterval(tickRef.current);
+      tickRef.current = null;
+      setProgress(100);
+      setTimeout(() => { setRunning(false); setProgress(0); }, 350);
+    }
   };
-  useEffect(() => { run(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { run(); return () => { if (tickRef.current) clearInterval(tickRef.current); }; /* eslint-disable-next-line */ }, []);
+
+  const worst = (rows: SeoCheck[]): SeoCheck["status"] => {
+    if (rows.some((r) => r.status === "fail")) return "fail";
+    if (rows.some((r) => r.status === "warn")) return "warn";
+    if (rows.every((r) => r.status === "pass")) return "pass";
+    return "pending";
+  };
 
   return (
     <div className="p-10 max-w-5xl mx-auto">
@@ -43,6 +65,13 @@ function SeoAuditPage() {
         sub="Server-side checks for meta, Open Graph, JSON-LD, sitemap/robots, Google Search Console, and Lighthouse."
         action={<Button variant="outline" size="sm" onClick={run} disabled={running}>{running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}Rerun audit</Button>}
       />
+
+      <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+        <span>{at ? `Last full run ${new Date(at).toLocaleString()}` : "Running first audit…"}</span>
+        <span>Run #{runCount}</span>
+      </div>
+      {running && <Progress value={progress} className="mb-6" />}
+      {!running && <div className="mb-6 h-2" />}
 
       <div className="grid grid-cols-4 gap-3 mb-8">
         <Tile label="Passing" value={summary?.pass ?? 0} tone="success" />
@@ -55,9 +84,16 @@ function SeoAuditPage() {
         {CATEGORIES.map((cat) => {
           const rows = checks.filter((c) => c.category === cat);
           if (rows.length === 0) return null;
+          const sectionStatus = worst(rows);
           return (
             <section key={cat}>
-              <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{cat}</h2>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xs uppercase tracking-wider text-muted-foreground">{cat}</h2>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={sectionStatus} />
+                  {at && <span className="text-[10px] text-muted-foreground">Checked {new Date(at).toLocaleTimeString()}</span>}
+                </div>
+              </div>
               <div className="rounded-2xl border border-border bg-card divide-y divide-border shadow-card">
                 {rows.map((c) => (
                   <div key={c.id} className="flex items-start gap-4 p-4">
@@ -74,8 +110,6 @@ function SeoAuditPage() {
           );
         })}
       </div>
-
-      {at && <p className="text-[10px] text-muted-foreground mt-6">Generated {new Date(at).toLocaleString()}</p>}
     </div>
   );
 }
