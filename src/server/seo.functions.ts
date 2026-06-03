@@ -101,7 +101,40 @@ export const verifyAndSubmitSite = createServerFn({ method: "POST" })
       updated_at: now,
     }).eq("id", 1);
 
+    await supabaseAdmin.from("audit_events").insert({
+      actor_id: context.userId,
+      action: "seo.gsc_verified",
+      entity: "seo_settings",
+      entity_id: null,
+      meta: { siteUrl, sitemapSubmitted: sr.ok },
+    });
+
     return { error: null as string | null, sitemapSubmitted: sr.ok };
+  });
+
+export const resubmitSitemap = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) return { error: "Forbidden" as const };
+    const headers = gscHeaders();
+    if (!headers) return { error: "Google Search Console connector not linked." };
+
+    const { data: settings } = await supabaseAdmin.from("seo_settings").select("gsc_site_url, gsc_verified_at").eq("id", 1).single();
+    if (!settings?.gsc_verified_at) return { error: "Verify the site first." };
+    const siteUrl = settings.gsc_site_url || `${SITE}/`;
+    const encoded = encodeURIComponent(siteUrl);
+    const sitemap = `${siteUrl.replace(/\/$/, "")}/sitemap.xml`;
+    const sr = await fetch(`${GATEWAY}/webmasters/v3/sites/${encoded}/sitemaps/${encodeURIComponent(sitemap)}`, {
+      method: "PUT", headers,
+    });
+    if (!sr.ok) return { error: `Sitemap submit failed: ${sr.status} ${await sr.text()}` };
+    const now = new Date().toISOString();
+    await supabaseAdmin.from("seo_settings").update({ gsc_sitemap_submitted_at: now, updated_at: now }).eq("id", 1);
+    await supabaseAdmin.from("audit_events").insert({
+      actor_id: context.userId, action: "seo.gsc_sitemap_resubmitted", entity: "seo_settings", entity_id: null, meta: { siteUrl },
+    });
+    return { error: null as string | null };
   });
 
 // ---------------- SEO audit ----------------
