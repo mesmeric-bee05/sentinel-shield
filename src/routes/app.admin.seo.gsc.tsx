@@ -67,8 +67,12 @@ function GscPage() {
       <div className="space-y-4">
         <Card label="1. Connector status" ok={!!connected}>
           {connected ? <p className="text-sm text-muted-foreground">Google Search Console connector is linked.</p>
-            : <div className="text-sm text-muted-foreground">
-                The Google Search Console connector is not linked. Ask Lovable: <em>"Connect the Google Search Console connector."</em>
+            : <div className="space-y-2 text-sm text-muted-foreground">
+                <p>Google Search Console isn't linked yet. Ask Lovable in chat:</p>
+                <div className="flex items-center gap-2">
+                  <code className="rounded bg-muted/40 px-2 py-1 text-xs flex-1">Connect the Google Search Console connector.</code>
+                  <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText("Connect the Google Search Console connector."); toast.success("Copied"); }}>Copy</Button>
+                </div>
               </div>}
         </Card>
 
