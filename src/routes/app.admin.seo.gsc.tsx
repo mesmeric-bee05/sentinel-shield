@@ -105,6 +105,13 @@ function GscPage() {
           </dl>
         </Card>
 
+        <Card label="4. Resubmit sitemap" ok={!!settings?.gsc_sitemap_submitted_at}>
+          <p className="text-xs text-muted-foreground mb-3">After republishing, push <code>/sitemap.xml</code> to GSC again so newly added pages get crawled and the SEO finding clears.</p>
+          <Button onClick={async () => { setBusy(true); const r = await resubmitFn({}); setBusy(false); if (r.error) toast.error(r.error); else { toast.success("Sitemap resubmitted."); await load(); } }} disabled={!settings?.gsc_verified_at || busy} variant="outline" size="sm">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><RefreshCw className="w-4 h-4 mr-2" />Resubmit now</>}
+          </Button>
+        </Card>
+
         <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Refresh status</Button>
       </div>
     </div>
