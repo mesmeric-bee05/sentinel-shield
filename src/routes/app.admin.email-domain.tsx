@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { checkDnsRecords, getEmailDomainSettings, saveEmailDomainSettings } from "@/server/email-domain.functions";
 import { PageHeader } from "./app";
 
