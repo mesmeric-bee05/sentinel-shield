@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { checkDnsRecords, getEmailDomainSettings, saveEmailDomainSettings } from "@/server/email-domain.functions";
 import { PageHeader } from "./app";
 
@@ -31,6 +32,8 @@ function EmailDomainWizard() {
   const [allPass, setAllPass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [polling, setPolling] = useState(false);
+  const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
+  const [autoActivatedAt, setAutoActivatedAt] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -64,7 +67,19 @@ function EmailDomainWizard() {
     if (r.error) { toast.error(r.error); return; }
     setChecks((r.checks ?? []) as DnsCheck[]);
     setAllPass(!!r.allPass);
-    if (r.allPass) setPolling(false);
+    setLastCheckedAt(new Date().toISOString());
+    if (r.allPass) {
+      setPolling(false);
+      // Auto-flip to live the moment DNS is green and we're still in sandbox.
+      if (mode === "sandbox") {
+        const sr = await saveFn({ data: { deliveryMode: "live" } });
+        if (!sr.error) {
+          setMode("live");
+          setAutoActivatedAt(new Date().toISOString());
+          toast.success("DNS verified — booking confirmations are now sending for real.");
+        }
+      }
+    }
   };
 
   const activate = async () => {
@@ -74,6 +89,18 @@ function EmailDomainWizard() {
     if (r.error) toast.error(r.error);
     else { setMode("live"); toast.success("Real delivery activated for booking confirmations."); }
   };
+
+  const revertToSandbox = async () => {
+    setBusy(true);
+    const r = await saveFn({ data: { deliveryMode: "sandbox" } });
+    setBusy(false);
+    if (r.error) toast.error(r.error);
+    else { setMode("sandbox"); setAutoActivatedAt(null); toast.success("Reverted to sandbox preview."); }
+  };
+
+  const passCount = checks?.filter((c) => c.status === "pass").length ?? 0;
+  const totalCount = checks?.length ?? 5;
+  const pct = checks ? Math.round((passCount / totalCount) * 100) : 0;
 
   return (
     <div className="p-10 max-w-5xl mx-auto">
@@ -106,6 +133,17 @@ function EmailDomainWizard() {
               {polling ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Auto-polling (8s)</> : "Start auto-poll"}
             </Button>
           </div>
+
+          {checks !== null && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1 text-xs">
+                <span className={`font-medium ${allPass ? "text-emerald-700" : "text-amber-700"}`}>{passCount}/{totalCount} records verified</span>
+                <span className="text-muted-foreground">{lastCheckedAt ? `Last checked ${new Date(lastCheckedAt).toLocaleTimeString()}` : ""}</span>
+              </div>
+              <Progress value={pct} className={allPass ? "[&>div]:bg-emerald-600" : "[&>div]:bg-amber-500"} />
+            </div>
+          )}
+
           {checks === null ? (
             <div className="text-sm text-muted-foreground">Run a check to see live DKIM / SPF / DMARC status.</div>
           ) : (
@@ -127,13 +165,20 @@ function EmailDomainWizard() {
 
         <Step n={4} title="Activate real delivery" done={mode === "live"}>
           <p className="text-xs text-muted-foreground mb-3">
-            Once verification passes, flip booking confirmations from sandbox preview (audit-only) to real outbound email.
+            When all DNS checks pass, the wizard automatically flips booking confirmations from sandbox preview (audit-only) to real outbound email.
             Current mode: <strong className="text-foreground">{mode}</strong>.
           </p>
-          <Button onClick={activate} disabled={!allPass || busy || mode === "live"}>
-            {mode === "live" ? <><ShieldCheck className="w-4 h-4 mr-2" />Live delivery active</> : "Activate real delivery"}
-          </Button>
-          {!allPass && <div className="text-xs text-amber-600 mt-2">All DNS checks must pass before activation.</div>}
+          {mode === "live" ? (
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 text-sm text-emerald-700"><ShieldCheck className="w-4 h-4" />Live delivery active{autoActivatedAt ? ` — auto-activated ${new Date(autoActivatedAt).toLocaleTimeString()}` : ""}.</div>
+              <div><Button onClick={revertToSandbox} variant="outline" size="sm" disabled={busy}>Undo to sandbox</Button></div>
+            </div>
+          ) : (
+            <>
+              <Button onClick={activate} disabled={!allPass || busy}>Activate real delivery manually</Button>
+              {!allPass && <div className="text-xs text-amber-600 mt-2">Verification must pass before activation. Auto-activation triggers as soon as it does.</div>}
+            </>
+          )}
         </Step>
       </ol>
     </div>

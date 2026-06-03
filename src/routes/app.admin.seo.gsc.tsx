@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getGscState, requestGscToken, verifyAndSubmitSite } from "@/server/seo.functions";
+import { getGscState, requestGscToken, verifyAndSubmitSite, resubmitSitemap } from "@/server/seo.functions";
 import { PageHeader } from "../routes/app";
 
 export const Route = createFileRoute("/app/admin/seo/gsc")({
@@ -24,6 +24,7 @@ function GscPage() {
   const loadFn = useServerFn(getGscState);
   const tokenFn = useServerFn(requestGscToken);
   const verifyFn = useServerFn(verifyAndSubmitSite);
+  const resubmitFn = useServerFn(resubmitSitemap);
 
   const [state, setState] = useState<State | null>(null);
   const [siteUrl, setSiteUrl] = useState("https://harmony-forge-nexus.lovable.app");
@@ -50,9 +51,13 @@ function GscPage() {
   const verify = async () => {
     setBusy(true);
     const r = await verifyFn({});
+    if (r.error) { setBusy(false); toast.error(r.error); return; }
+    // Auto-resubmit sitemap to push the freshly-deployed meta tag and clear the GSC finding.
+    const rr = await resubmitFn({});
     setBusy(false);
-    if (r.error) toast.error(r.error);
-    else { toast.success(r.sitemapSubmitted ? "Verified and sitemap submitted." : "Verified. Sitemap submission was skipped."); await load(); }
+    if (rr.error) toast.warning(`Verified, but resubmit failed: ${rr.error}`);
+    else toast.success("Verified, sitemap submitted, SEO finding cleared.");
+    await load();
   };
 
   return (
@@ -62,8 +67,12 @@ function GscPage() {
       <div className="space-y-4">
         <Card label="1. Connector status" ok={!!connected}>
           {connected ? <p className="text-sm text-muted-foreground">Google Search Console connector is linked.</p>
-            : <div className="text-sm text-muted-foreground">
-                The Google Search Console connector is not linked. Ask Lovable: <em>"Connect the Google Search Console connector."</em>
+            : <div className="space-y-2 text-sm text-muted-foreground">
+                <p>Google Search Console isn't linked yet. Ask Lovable in chat:</p>
+                <div className="flex items-center gap-2">
+                  <code className="rounded bg-muted/40 px-2 py-1 text-xs flex-1">Connect the Google Search Console connector.</code>
+                  <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText("Connect the Google Search Console connector."); toast.success("Copied"); }}>Copy</Button>
+                </div>
               </div>}
         </Card>
 
@@ -94,6 +103,13 @@ function GscPage() {
             <div><dt className="text-muted-foreground">Verified at</dt><dd>{settings?.gsc_verified_at ? new Date(settings.gsc_verified_at).toLocaleString() : "—"}</dd></div>
             <div><dt className="text-muted-foreground">Sitemap submitted</dt><dd>{settings?.gsc_sitemap_submitted_at ? new Date(settings.gsc_sitemap_submitted_at).toLocaleString() : "—"}</dd></div>
           </dl>
+        </Card>
+
+        <Card label="4. Resubmit sitemap" ok={!!settings?.gsc_sitemap_submitted_at}>
+          <p className="text-xs text-muted-foreground mb-3">After republishing, push <code>/sitemap.xml</code> to GSC again so newly added pages get crawled and the SEO finding clears.</p>
+          <Button onClick={async () => { setBusy(true); const r = await resubmitFn({}); setBusy(false); if (r.error) toast.error(r.error); else { toast.success("Sitemap resubmitted."); await load(); } }} disabled={!settings?.gsc_verified_at || busy} variant="outline" size="sm">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><RefreshCw className="w-4 h-4 mr-2" />Resubmit now</>}
+          </Button>
         </Card>
 
         <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Refresh status</Button>
