@@ -32,6 +32,8 @@ function EmailDomainWizard() {
   const [allPass, setAllPass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [polling, setPolling] = useState(false);
+  const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
+  const [autoActivatedAt, setAutoActivatedAt] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -65,7 +67,19 @@ function EmailDomainWizard() {
     if (r.error) { toast.error(r.error); return; }
     setChecks((r.checks ?? []) as DnsCheck[]);
     setAllPass(!!r.allPass);
-    if (r.allPass) setPolling(false);
+    setLastCheckedAt(new Date().toISOString());
+    if (r.allPass) {
+      setPolling(false);
+      // Auto-flip to live the moment DNS is green and we're still in sandbox.
+      if (mode === "sandbox") {
+        const sr = await saveFn({ data: { deliveryMode: "live" } });
+        if (!sr.error) {
+          setMode("live");
+          setAutoActivatedAt(new Date().toISOString());
+          toast.success("DNS verified — booking confirmations are now sending for real.");
+        }
+      }
+    }
   };
 
   const activate = async () => {
@@ -75,6 +89,18 @@ function EmailDomainWizard() {
     if (r.error) toast.error(r.error);
     else { setMode("live"); toast.success("Real delivery activated for booking confirmations."); }
   };
+
+  const revertToSandbox = async () => {
+    setBusy(true);
+    const r = await saveFn({ data: { deliveryMode: "sandbox" } });
+    setBusy(false);
+    if (r.error) toast.error(r.error);
+    else { setMode("sandbox"); setAutoActivatedAt(null); toast.success("Reverted to sandbox preview."); }
+  };
+
+  const passCount = checks?.filter((c) => c.status === "pass").length ?? 0;
+  const totalCount = checks?.length ?? 5;
+  const pct = checks ? Math.round((passCount / totalCount) * 100) : 0;
 
   return (
     <div className="p-10 max-w-5xl mx-auto">
