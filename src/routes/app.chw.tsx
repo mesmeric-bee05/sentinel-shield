@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ClipboardList, Loader2, MapPin } from "lucide-react";
+import { AlertTriangle, ClipboardList, Loader2, MapPin } from "lucide-react";
 import { listAssignments, updateAssignmentStatus, type StatusUpdateInputT } from "@/server/chw.functions";
 import { PageHeader } from "./app";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/app/chw")({ component: ChwHomePage });
+export const Route = createFileRoute("/app/chw")({
+  component: ChwHomePage,
+  errorComponent: ({ error, reset }) => (
+    <div className="p-10 max-w-3xl mx-auto">
+      <Card className="p-8 text-center">
+        <AlertTriangle className="w-8 h-8 mx-auto text-amber-600 mb-3" />
+        <h2 className="font-medium text-lg">Couldn't load the CHW queue</h2>
+        <p className="text-sm text-muted-foreground mt-2">{error.message || "Unexpected error."}</p>
+        <Button onClick={reset} variant="outline" size="sm" className="mt-4">Try again</Button>
+      </Card>
+    </div>
+  ),
+});
 
 const STATUSES = ["accepted", "in_progress", "completed", "cancelled", "escalated"] as const;
 
@@ -22,7 +34,14 @@ function ChwHomePage() {
 
   const list = useQuery({
     queryKey: ["chw-mine"],
-    queryFn: () => la({ data: { onlyMine: true, status: null } }),
+    queryFn: async () => {
+      try {
+        return await la({ data: { onlyMine: true, status: null } });
+      } catch (e) {
+        return { assignments: [], error: e instanceof Error ? e.message : "Failed to load queue" };
+      }
+    },
+    retry: 1,
   });
 
   const update = useMutation({
@@ -33,13 +52,24 @@ function ChwHomePage() {
     },
   });
 
+  const empty = !list.isLoading && (list.data?.assignments.length ?? 0) === 0;
+  const error = list.data && "error" in list.data ? list.data.error : null;
+
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <PageHeader title="My CHW queue" sub="Tasks dispatched to you. Update status with optional check-in geo-tag." />
       <div className="space-y-3">
         {list.isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
-        {!list.isLoading && (list.data?.assignments.length ?? 0) === 0 && (
-          <Card className="p-8 text-center text-sm text-muted-foreground"><ClipboardList className="w-6 h-6 mx-auto mb-2 opacity-60" />Nothing assigned yet.</Card>
+        {error && (
+          <Card className="p-4 border-amber-200 bg-amber-50/50">
+            <div className="text-sm text-amber-900 flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{error}</div>
+          </Card>
+        )}
+        {empty && !error && (
+          <Card className="p-8 text-center text-sm text-muted-foreground">
+            <ClipboardList className="w-6 h-6 mx-auto mb-2 opacity-60" />
+            You don't have any CHW assignments. If you're not part of the Community Health Worker program, an admin can enroll you from the CHW mesh page.
+          </Card>
         )}
         {list.data?.assignments.map((a) => (
           <AssignmentRow
@@ -64,11 +94,12 @@ function AssignmentRow({
   const [status, setStatus] = useState<(typeof STATUSES)[number]>("in_progress");
   const [notes, setNotes] = useState("");
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
+  const taskLabel = (assignment.task_type ?? "task").replace(/_/g, " ");
 
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between">
-        <div className="font-medium">{assignment.task_type.replace("_", " ")} <span className="ml-2 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary">{assignment.status}</span></div>
+        <div className="font-medium">{taskLabel} <span className="ml-2 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary">{assignment.status}</span></div>
         <div className="text-xs text-muted-foreground">Due {new Date(assignment.due_at).toLocaleString()}</div>
       </div>
       {assignment.notes && <div className="text-sm mt-2 text-muted-foreground">{assignment.notes}</div>}

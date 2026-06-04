@@ -1,59 +1,61 @@
-## Goal
 
-Close three loops already scaffolded in the admin tooling:
-1. One-click GSC authorize → verify → sitemap submit from `/app/admin/seo/gsc`, and mark the SEO finding fixed.
-2. Email-domain wizard shows a live DNS verification summary and auto-flips to `live` delivery the moment Lovable reports the domain active.
-3. SEO audit page shows per-section pass/fail, a running progress indicator on rerun, and a clear last-run timestamp.
+## Scope
 
-No schema changes — `email_settings` and `seo_settings` already exist; `runSeoAudit`, `getEmailDomainSettings`, `checkDnsRecords`, and the GSC server fns are already in place. This is wiring + UX.
+Six work-streams. I'll keep edits surgical and only touch files needed per item.
 
-## 1. GSC: authorize + auto-republish — `src/routes/app.admin.seo.gsc.tsx` + `src/server/seo.functions.ts`
+---
 
-UI changes:
-- Step 1 "Connector status" gets a **Connect Google Search Console** button. When `connected=false`, clicking it triggers the `standard_connectors--connect` flow (surfaced via a chat prompt the user clicks — the admin page deep-links to it with an inline instruction + copy button).
-- After `verifyAndSubmitSite` succeeds, immediately:
-  - Call a new server fn `markGscFindingFixed` that uses the SEO findings API to mark the GSC finding `fixed` with explanation "Verified ownership and submitted /sitemap.xml via GSC API".
-  - Call `verifyAndSubmitSite` once more in "resubmit" mode to push `/sitemap.xml` again (covers the "republish immediately" requirement so the live build's freshly-deployed meta tag is re-scanned).
-  - Toast: "Verified, sitemap submitted, SEO finding cleared."
-- Show a 4th status card "SEO finding" with pass/fail badge driven by the latest `runSeoAudit` GSC row.
+### 1. GSC connect + verify: error states, auto-retry, republish history
 
-Server changes (`src/server/seo.functions.ts`):
-- Add `resubmitSitemap` — thin wrapper that PUTs `/webmasters/v3/sites/<encoded>/sitemaps/<sitemap-url>` and updates `gsc_sitemap_submitted_at`.
-- Extend `verifyAndSubmitSite` to also write an `audit_events` row `seo.gsc_verified` for the admin audit log.
+**Files:** `src/server/seo.functions.ts`, `src/routes/app.admin.seo.gsc.tsx`, new migration for `gsc_republish_log`.
 
-## 2. Email-domain wizard: live summary + auto-activate — `src/routes/app.admin.email-domain.tsx`
+- New table `public.gsc_republish_log` (kind: `verify` | `sitemap_resubmit`, status: `success`|`failed`, http_status, error_message, duration_ms, actor_id). Standard GRANTs + admin-only RLS.
+- Wrap `verifyAndSubmitSite` and `resubmitSitemap` to log every attempt (success + failure) with timing + parsed error.
+- New `listGscHistory` serverFn (admin) returning last 50 rows.
+- UI: error banners with parsed reason (e.g. `failedToFindMetaTag`, `403`, connector-missing) + an explicit "Retry" button. Auto-retry once with 2s backoff on transient 5xx/network failures.
+- New "Republish history" card showing timestamp/kind/status/duration/error, with a manual "Resubmit sitemap" button.
 
-UI changes:
-- Step 3 (verification) renders a compact summary header: **`<n>/5 records verified`** with a `<Progress />` bar over the existing per-record list. Bar color: amber while pending, emerald once `allPass`.
-- Polling: keep the 8s interval that calls `checkDnsRecords`. When `allPass` becomes `true` AND `delivery_mode === 'sandbox'`, automatically call `saveEmailDomainSettings({ deliveryMode: 'live' })`, write an `audit_events` row `email.delivery_mode_auto_live`, and toast "Booking confirmations now sending for real."
-- Step 4 (Activate) becomes a confirmation panel rather than a manual switch — shows the auto-flip timestamp and an "Undo to sandbox" link.
-- Add a "Last checked" timestamp under the summary refreshed every poll.
+### 2. Email-domain wizard: live DKIM/SPF/DMARC/NS diagnostics + delivery-switch event
 
-No server-fn changes needed; `saveEmailDomainSettings` already supports `deliveryMode`.
+**Files:** `src/server/email-domain.functions.ts`, `src/routes/app.admin.email-domain.tsx`.
 
-## 3. SEO audit: rerun progress + per-section status — `src/routes/app.admin.seo-audit.tsx`
+- Extend `checkDnsRecords` result with per-record `expected`, `observed`, `diagnostic` (human reason: "TXT found but missing `v=spf1`", "NS still points to registrar default", etc.) and `lastCheckedAt`.
+- Persist last check + last auto-switch timestamp in `email_settings` (new columns `last_dns_check_at`, `live_since_at`).
+- UI: per-record expandable diagnostic row with copy-to-clipboard expected values. Banner card "Live delivery active since {timestamp}" once `delivery_mode` flips. Reads `audit_events` filtered to `email.delivery_mode_auto_live` to render history.
 
-UI changes:
-- Replace the single `running` flag with `progress: { category, done, total }`. The `runSeoAudit` server fn already returns checks in a known category order; until the response arrives, render a `<Progress />` bar that ticks through the 6 categories on a 600ms timer so the user sees motion (then snaps to 100 % on response).
-- Each category section gets a section-level badge **PASS / WARN / FAIL** computed from its rows (worst status wins) and a per-section "Last checked" timestamp.
-- Top-of-page summary tiles already exist; add a "Last full run" line above them and a small "Run #N" counter so reruns are visible.
-- Per-row "Recheck" affordance from the existing plan is dropped for v1 — the rerun button covers it.
+### 3. SEO audit: run history + per-section progress + export
 
-## Technical details
+**Files:** `src/server/seo.functions.ts`, `src/routes/app.admin.seo-audit.tsx`, migration for `seo_audit_runs`.
 
-**Edited files**
-- `src/routes/app.admin.seo.gsc.tsx` — add 4th card, wire connect prompt, call `markGscFindingFixed` + `resubmitSitemap` after verify.
-- `src/server/seo.functions.ts` — add `resubmitSitemap`, `markGscFindingFixed` (calls the SEO findings update endpoint via the same gateway pattern), audit-log additions.
-- `src/routes/app.admin.email-domain.tsx` — Progress component, auto-flip effect, summary header.
-- `src/routes/app.admin.seo-audit.tsx` — progress state, section badges, last-run timestamp, run counter.
+- New table `public.seo_audit_runs` (started_at, finished_at, duration_ms, summary jsonb, checks jsonb). Admin-only.
+- `runSeoAudit` persists each run; new `listSeoAuditRuns` returns last 20.
+- UI: history panel (timestamp, duration, pass/warn/fail counts). Per-section progress indicator already exists — add per-section spinner state during rerun. "Export JSON" + "Export CSV" download buttons for the latest run.
 
-**No DB migration. No connector changes.** The `google_search_console` connector is already linked via the admin's prior session per the seo.functions usage; if not, the GSC page surfaces a clear "Connect" instruction.
+### 4. Fix `/app/chw` "Something went wrong"
 
-**Out of scope** (call out, don't build)
-- Scheduled daily sitemap resubmit (Open Q #1 from prior plan).
-- Per-template delivery kill switch (Open Q #2).
-- Per-row "Recheck" in SEO audit.
+**Files:** `src/routes/app.chw.tsx`, `src/server/chw.functions.ts`.
 
-## Open question
+- Root cause: the embedded join `chw:chw_workers(display_name, user_id)` plus admin-client query fails for patient role with no `chw_workers` row — and the component crashes on `assignment.task_type.replace` when the list errors. The loader also surfaces `error` but UI ignores it.
+- Fix: short-circuit early for non-CHW users (return empty + role flag), render a friendly empty state ("You are not part of the CHW program"), and guard render with `error` handling instead of throwing.
 
-The "republish" in your request — do you want me to (a) just resubmit the sitemap to GSC after verification (what this plan does, fastest, no rebuild), or (b) trigger an actual frontend republish of the app? (b) requires you to click Publish manually; there is no programmatic publish API.
+### 5. Enable Confirm Booking + patient↔CHW/provider contact
+
+**Files:** `src/components/booking/BookingDialog.tsx`, `src/routes/app.appointments.tsx`, possibly new `src/components/contact/ContactActions.tsx`.
+
+- Confirm-booking button is disabled while `step !== "review"` or hold not acquired or AI summary in flight. Add visible reason ("Reserving slot…", "Generating AI summary…") and a manual "Skip AI & confirm" fallback so the button is never silently stuck.
+- Add `tel:` / `sms:` / in-app message actions on appointment cards and CHW assignment cards (uses existing phone fields in `chw_workers` / `provider_profiles` / `profiles`). For patients without provider phone exposed, render only the in-app message link.
+
+### 6. Misc reliability & security pass
+
+- Add explicit error boundaries on `/app/chw`, `/app/discover`, `/app/appointments` to avoid the generic "Something went wrong" page.
+- Verify RLS + GRANTs on the two new tables (admin-only via `has_role`).
+- Add audit_events rows for: GSC verify, GSC sitemap resubmit, SEO audit run, email delivery auto-switch (some already exist — fill the gaps).
+
+---
+
+## Out of scope / clarifications
+
+- "Implement all features, technologies and securities" is open-ended; I'll cap this turn at the six items above. If you want me to also extend (e.g.) payments, video room, or full HIPAA review, tell me which next and I'll do them in follow-up turns.
+- Republish here means **resubmit sitemap to Google** (no programmatic frontend republish API exists). Frontend re-publish of the app still needs a manual click in the Publish dialog.
+
+Approve and I'll implement in this order: 4 → 5 → 1 → 3 → 2 → 6.

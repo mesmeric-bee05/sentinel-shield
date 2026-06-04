@@ -283,20 +283,62 @@ export type Database = {
         Row: {
           delivery_mode: string
           id: number
+          last_dns_check_at: string | null
+          live_since_at: string | null
           sender_domain: string | null
           updated_at: string
         }
         Insert: {
           delivery_mode?: string
           id?: number
+          last_dns_check_at?: string | null
+          live_since_at?: string | null
           sender_domain?: string | null
           updated_at?: string
         }
         Update: {
           delivery_mode?: string
           id?: number
+          last_dns_check_at?: string | null
+          live_since_at?: string | null
           sender_domain?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      gsc_republish_log: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          http_status: number | null
+          id: string
+          kind: string
+          site_url: string | null
+          status: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          kind: string
+          site_url?: string | null
+          status: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          http_status?: number | null
+          id?: string
+          kind?: string
+          site_url?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -455,6 +497,39 @@ export type Database = {
           requested_role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["role_request_status"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      seo_audit_runs: {
+        Row: {
+          actor_id: string | null
+          checks: Json
+          created_at: string
+          duration_ms: number
+          finished_at: string
+          id: string
+          started_at: string
+          summary: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          checks: Json
+          created_at?: string
+          duration_ms: number
+          finished_at: string
+          id?: string
+          started_at: string
+          summary: Json
+        }
+        Update: {
+          actor_id?: string | null
+          checks?: Json
+          created_at?: string
+          duration_ms?: number
+          finished_at?: string
+          id?: string
+          started_at?: string
+          summary?: Json
         }
         Relationships: []
       }
