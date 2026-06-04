@@ -1,7 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
-import { getSeoSettings } from "@/server/seo.functions";
+import { getSeoMeta } from "@/lib/seo-public.functions";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -29,8 +29,8 @@ function NotFoundComponent() {
 export const Route = createRootRoute({
   loader: async () => {
     try {
-      const r = await getSeoSettings();
-      return { gscToken: r.settings?.gsc_meta_token ?? null };
+      const r = await getSeoMeta();
+      return { gscToken: r.gscToken };
     } catch {
       return { gscToken: null };
     }
