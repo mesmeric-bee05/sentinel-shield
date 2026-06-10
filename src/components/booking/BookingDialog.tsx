@@ -273,15 +273,27 @@ export function BookingDialog({ open, onClose, provider: initialProvider, slot: 
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-border flex justify-between gap-2">
-              <Button variant="ghost" onClick={() => setStep("preview")} disabled={step === "confirming"}>
-                <Eye className="w-4 h-4 mr-2" />Preview calendar
-              </Button>
-              <div className="flex gap-2">
-                <Button variant="ghost" onClick={handleClose} disabled={step === "confirming"}>Cancel</Button>
-                <Button onClick={confirm} disabled={step === "confirming" || !hold || expired}>
-                  {step === "confirming" ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Booking…</> : <>Confirm booking <ArrowRight className="w-4 h-4 ml-2" /></>}
+            <div className="px-6 py-4 border-t border-border flex flex-col gap-2">
+              {(aiLoading || !hold || expired) && (
+                <div className="text-[11px] text-muted-foreground text-right">
+                  {!hold && !expired && <>Reserving slot…</>}
+                  {expired && <>Hold expired — tap retry to reserve again.</>}
+                  {hold && !expired && aiLoading && <>Drafting AI summary — you can skip and confirm anyway.</>}
+                </div>
+              )}
+              <div className="flex justify-between gap-2">
+                <Button variant="ghost" onClick={() => setStep("preview")} disabled={step === "confirming"}>
+                  <Eye className="w-4 h-4 mr-2" />Preview calendar
                 </Button>
+                <div className="flex gap-2">
+                  {aiLoading && hold && !expired && (
+                    <Button variant="outline" onClick={() => { setAiLoading(false); setAiSummary(""); }} disabled={step === "confirming"}>Skip AI</Button>
+                  )}
+                  <Button variant="ghost" onClick={handleClose} disabled={step === "confirming"}>Cancel</Button>
+                  <Button onClick={confirm} disabled={step === "confirming" || !hold || expired}>
+                    {step === "confirming" ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Booking…</> : <>Confirm booking <ArrowRight className="w-4 h-4 ml-2" /></>}
+                  </Button>
+                </div>
               </div>
             </div>
           </>
