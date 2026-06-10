@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { listEmailTemplates, renderEmailPreview } from "@/server/email-preview.functions";
+import { listEmailTemplates, renderEmailPreview } from "@/lib/email-preview.functions";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/email-preview")({
