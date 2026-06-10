@@ -1,61 +1,43 @@
+## Implementation plan
 
-## Scope
+### 1. Clear the remaining import-protection/build errors
+- Move client-imported server functions out of `src/server/*` into client-safe `src/lib/*.functions.ts` modules, starting with the confirmed email preview error.
+- Update route/component imports to the new locations for the touched flows: GSC, SEO audit, email-domain wizard, CHW queue, booking, contact preferences, appointments, and email preview.
+- Keep server-only helpers and admin client usage inside server function handlers so secrets never reach the browser bundle.
+- Confirm authenticated server calls have the auth-attacher startup wiring if this project needs an explicit `src/start.ts` entry.
 
-Six work-streams. I'll keep edits surgical and only touch files needed per item.
+### 2. GSC connect, verification, retry, and republish history UI
+- Enhance the GSC page with clear states for: connector missing, token missing, meta tag not deployed, verification failed, sitemap/URL republish failed, and verified/healthy.
+- Add an explicit Retry button for connect/token/verify/republish failures.
+- Add one automatic retry with a short delay for transient failures such as network or 5xx responses, including republish failure after verification.
+- Load and display the existing republish log as an admin history panel with timestamp, action type, status, HTTP status, duration, site URL, and result/error details.
+- Add manual “Resubmit sitemap” and “Resubmit URL” actions where supported by the existing connector path, and log each attempt.
 
----
+### 3. Email-domain wizard live diagnostics and delivery switch confirmation
+- Expand the wizard’s DKIM/SPF/DMARC diagnostics to show expected record, observed values, pass/warn/fail reason, and last checked time.
+- Keep NS/MX checks visible as supporting infrastructure diagnostics without hiding the requested DKIM/SPF/DMARC status.
+- Display persisted `live_since_at` and delivery-mode audit history so admins see the exact timestamp booking confirmations switched from sandbox preview to real delivery.
+- Ensure auto-switch is recorded as an auto-live audit event, not only a generic manual mode change.
 
-### 1. GSC connect + verify: error states, auto-retry, republish history
+### 4. SEO audit run history, section progress, and export
+- Wire the SEO audit page to `listSeoAuditRuns` and show the latest runs with last-run timestamp, duration, and pass/warn/fail counts.
+- Add per-section rerun progress indicators while an audit is running, instead of only one global progress bar.
+- Add export options for the latest result as JSON and CSV.
+- Improve error handling around Lighthouse/PageSpeed and published-page fetches so failed sections show clear warnings instead of breaking the page.
 
-**Files:** `src/server/seo.functions.ts`, `src/routes/app.admin.seo.gsc.tsx`, new migration for `gsc_republish_log`.
+### 5. Fix CHW queue crash and improve patient/CHW contact
+- Fix `/app/chw` so non-CHW patients see a friendly empty state instead of the generic error page.
+- Harden CHW assignment rendering against missing task types, missing CHW joins, and query errors.
+- Add contact actions using available phone fields: call/text buttons for CHWs and clinicians when phone is available, and safe in-app/contact fallback when it is not.
+- If provider phone is not currently stored, surface the fallback cleanly and avoid inventing unavailable phone data.
 
-- New table `public.gsc_republish_log` (kind: `verify` | `sitemap_resubmit`, status: `success`|`failed`, http_status, error_message, duration_ms, actor_id). Standard GRANTs + admin-only RLS.
-- Wrap `verifyAndSubmitSite` and `resubmitSitemap` to log every attempt (success + failure) with timing + parsed error.
-- New `listGscHistory` serverFn (admin) returning last 50 rows.
-- UI: error banners with parsed reason (e.g. `failedToFindMetaTag`, `403`, connector-missing) + an explicit "Retry" button. Auto-retry once with 2s backoff on transient 5xx/network failures.
-- New "Republish history" card showing timestamp/kind/status/duration/error, with a manual "Resubmit sitemap" button.
+### 6. Ensure booking button works reliably
+- Update the booking dialog so the Confirm button never appears silently stuck.
+- Show the exact blocking reason when waiting for slot hold, AI summary, expired hold, or conflict.
+- Add a retry-reserve action and a “confirm without AI summary” fallback so patients can proceed when AI summarization fails or stalls.
+- Keep final server-side conflict checks and hold validation in place for security.
 
-### 2. Email-domain wizard: live DKIM/SPF/DMARC/NS diagnostics + delivery-switch event
-
-**Files:** `src/server/email-domain.functions.ts`, `src/routes/app.admin.email-domain.tsx`.
-
-- Extend `checkDnsRecords` result with per-record `expected`, `observed`, `diagnostic` (human reason: "TXT found but missing `v=spf1`", "NS still points to registrar default", etc.) and `lastCheckedAt`.
-- Persist last check + last auto-switch timestamp in `email_settings` (new columns `last_dns_check_at`, `live_since_at`).
-- UI: per-record expandable diagnostic row with copy-to-clipboard expected values. Banner card "Live delivery active since {timestamp}" once `delivery_mode` flips. Reads `audit_events` filtered to `email.delivery_mode_auto_live` to render history.
-
-### 3. SEO audit: run history + per-section progress + export
-
-**Files:** `src/server/seo.functions.ts`, `src/routes/app.admin.seo-audit.tsx`, migration for `seo_audit_runs`.
-
-- New table `public.seo_audit_runs` (started_at, finished_at, duration_ms, summary jsonb, checks jsonb). Admin-only.
-- `runSeoAudit` persists each run; new `listSeoAuditRuns` returns last 20.
-- UI: history panel (timestamp, duration, pass/warn/fail counts). Per-section progress indicator already exists — add per-section spinner state during rerun. "Export JSON" + "Export CSV" download buttons for the latest run.
-
-### 4. Fix `/app/chw` "Something went wrong"
-
-**Files:** `src/routes/app.chw.tsx`, `src/server/chw.functions.ts`.
-
-- Root cause: the embedded join `chw:chw_workers(display_name, user_id)` plus admin-client query fails for patient role with no `chw_workers` row — and the component crashes on `assignment.task_type.replace` when the list errors. The loader also surfaces `error` but UI ignores it.
-- Fix: short-circuit early for non-CHW users (return empty + role flag), render a friendly empty state ("You are not part of the CHW program"), and guard render with `error` handling instead of throwing.
-
-### 5. Enable Confirm Booking + patient↔CHW/provider contact
-
-**Files:** `src/components/booking/BookingDialog.tsx`, `src/routes/app.appointments.tsx`, possibly new `src/components/contact/ContactActions.tsx`.
-
-- Confirm-booking button is disabled while `step !== "review"` or hold not acquired or AI summary in flight. Add visible reason ("Reserving slot…", "Generating AI summary…") and a manual "Skip AI & confirm" fallback so the button is never silently stuck.
-- Add `tel:` / `sms:` / in-app message actions on appointment cards and CHW assignment cards (uses existing phone fields in `chw_workers` / `provider_profiles` / `profiles`). For patients without provider phone exposed, render only the in-app message link.
-
-### 6. Misc reliability & security pass
-
-- Add explicit error boundaries on `/app/chw`, `/app/discover`, `/app/appointments` to avoid the generic "Something went wrong" page.
-- Verify RLS + GRANTs on the two new tables (admin-only via `has_role`).
-- Add audit_events rows for: GSC verify, GSC sitemap resubmit, SEO audit run, email delivery auto-switch (some already exist — fill the gaps).
-
----
-
-## Out of scope / clarifications
-
-- "Implement all features, technologies and securities" is open-ended; I'll cap this turn at the six items above. If you want me to also extend (e.g.) payments, video room, or full HIPAA review, tell me which next and I'll do them in follow-up turns.
-- Republish here means **resubmit sitemap to Google** (no programmatic frontend republish API exists). Frontend re-publish of the app still needs a manual click in the Publish dialog.
-
-Approve and I'll implement in this order: 4 → 5 → 1 → 3 → 2 → 6.
+### 7. Validation pass
+- Run the relevant automated checks after implementation.
+- Use preview signals for the CHW screenshot issue and verify `/app/chw` no longer shows the generic “Something went wrong” page.
+- Verify the admin GSC, email-domain, SEO audit, appointments, discover/booking, and email preview pages render without import-protection errors.
