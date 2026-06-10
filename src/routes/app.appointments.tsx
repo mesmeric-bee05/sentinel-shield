@@ -1,15 +1,26 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Calendar, Video, X } from "lucide-react";
+import { AlertTriangle, Calendar, MessageSquare, Video, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/appointments")({
   head: () => ({ meta: [{ title: "Appointments — ApexCare AI" }] }),
   component: Appointments,
+  errorComponent: ({ error, reset }) => (
+    <div className="p-10 max-w-3xl mx-auto">
+      <Card className="p-8 text-center">
+        <AlertTriangle className="w-8 h-8 mx-auto text-amber-600 mb-3" />
+        <h2 className="font-medium text-lg">Couldn't load your appointments</h2>
+        <p className="text-sm text-muted-foreground mt-2">{error.message || "Unexpected error."}</p>
+        <Button onClick={reset} variant="outline" size="sm" className="mt-4">Try again</Button>
+      </Card>
+    </div>
+  ),
 });
 
 type Appt = { id: string; starts_at: string; ends_at: string; status: string; channel: string; reason: string | null; provider: { display_name: string; specialty: string } | null };
@@ -41,7 +52,7 @@ function Appointments() {
 
   return (
     <div className="p-10 max-w-5xl mx-auto">
-      <PageHeader title="Appointments" sub="Manage your visits, join telemedicine, or reschedule." />
+      <PageHeader title="Appointments" sub="Manage your visits, join telemedicine, message your clinician, or reschedule." />
       {loading ? <div className="text-sm text-muted-foreground">Loading…</div> : (
         <>
           <Section title="Upcoming" items={upcoming} cancel={cancel} />
@@ -61,17 +72,28 @@ function Section({ title, items, cancel }: { title: string; items: Appt[]; cance
       ) : (
         <ul className="space-y-2">
           {items.map((a) => (
-            <li key={a.id} className="rounded-xl border border-border bg-card p-4 flex items-center justify-between shadow-card">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-muted grid place-items-center"><Calendar className="w-4 h-4" /></div>
-                <div>
-                  <div className="font-medium">{a.provider?.display_name ?? "Provider"} <span className="text-muted-foreground font-normal">· {a.provider?.specialty}</span></div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{new Date(a.starts_at).toLocaleString()} · {a.reason}</div>
+            <li key={a.id} className="rounded-xl border border-border bg-card p-4 flex items-center justify-between shadow-card gap-3">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-muted grid place-items-center shrink-0"><Calendar className="w-4 h-4" /></div>
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{a.provider?.display_name ?? "Provider"} <span className="text-muted-foreground font-normal">· {a.provider?.specialty}</span></div>
+                  <div className="text-xs text-muted-foreground mt-0.5 truncate">{new Date(a.starts_at).toLocaleString()} · {a.reason}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground">{a.status}</span>
-                {a.channel === "telemedicine" && a.status !== "cancelled" && <Button asChild size="sm" variant="outline"><Link to="/app/room/$appointmentId" params={{ appointmentId: a.id }}><Video className="w-3.5 h-3.5 mr-1.5" />Join</Link></Button>}
+                {a.status !== "cancelled" && (
+                  <Button asChild size="sm" variant="outline">
+                    <Link to="/app/room/$appointmentId" params={{ appointmentId: a.id }}>
+                      <MessageSquare className="w-3.5 h-3.5 mr-1.5" />Message
+                    </Link>
+                  </Button>
+                )}
+                {a.channel === "telemedicine" && a.status !== "cancelled" && (
+                  <Button asChild size="sm">
+                    <Link to="/app/room/$appointmentId" params={{ appointmentId: a.id }}><Video className="w-3.5 h-3.5 mr-1.5" />Join</Link>
+                  </Button>
+                )}
                 {cancel && <Button size="sm" variant="ghost" onClick={() => cancel(a.id)}><X className="w-3.5 h-3.5" /></Button>}
               </div>
             </li>
