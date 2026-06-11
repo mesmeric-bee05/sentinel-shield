@@ -7,6 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getGscState, requestGscToken, verifyAndSubmitSite, resubmitSitemap, listGscHistory } from "@/server/seo.functions";
+import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
+import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
+import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { PageHeader } from "../routes/app";
 
 export const Route = createFileRoute("/app/admin/seo/gsc")({
@@ -41,8 +44,26 @@ function GscPage() {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
+  const [filters, setFilters] = useState<HistoryFilterState>(emptyFilters);
+  const [page, setPage] = useState(1);
+  const filteredHistory = applyHistoryFilter(history, filters, {
+    date: (r) => r.created_at,
+    status: (r) => r.status,
+    searchable: (r) => `${r.kind} ${r.status} ${r.site_url ?? ""} ${r.error_message ?? ""}`,
+  });
+  const { slice: historySlice, total: historyTotal, pages: historyPages } = paginate(filteredHistory, page, 25);
+  const gscExportCols = [
+    { key: "created_at", label: "When", value: (r: HistoryRow) => r.created_at },
+    { key: "kind", label: "Action", value: (r: HistoryRow) => r.kind },
+    { key: "status", label: "Status", value: (r: HistoryRow) => r.status },
+    { key: "http_status", label: "HTTP", value: (r: HistoryRow) => r.http_status ?? "" },
+    { key: "duration_ms", label: "Duration (ms)", value: (r: HistoryRow) => r.duration_ms },
+    { key: "site_url", label: "Site URL", value: (r: HistoryRow) => r.site_url ?? "" },
+    { key: "error_message", label: "Error", value: (r: HistoryRow) => r.error_message ?? "" },
+  ];
+
   if (state && "error" in state && state.error === "Forbidden") {
-    return <div className="p-10"><PageHeader title="Google Search Console" sub="Admin role required." /></div>;
+    return <div className="p-10"><PermissionDeniedCard /></div>;
   }
 
   const connected = state && "connected" in state && state.connected;
