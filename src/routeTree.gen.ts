@@ -33,6 +33,7 @@ import { Route as AppAdminGeoRouteImport } from './routes/app.admin.geo'
 import { Route as AppAdminEmailPreviewRouteImport } from './routes/app.admin.email-preview'
 import { Route as AppAdminEmailHealthRouteImport } from './routes/app.admin.email-health'
 import { Route as AppAdminEmailDomainRouteImport } from './routes/app.admin.email-domain'
+import { Route as AppAdminChwQueueRouteImport } from './routes/app.admin.chw-queue'
 import { Route as AppAdminChwRouteImport } from './routes/app.admin.chw'
 import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
 import { Route as AppAdminTestSmsRouteImport } from './routes/app.admin.test.sms'
@@ -159,6 +160,11 @@ const AppAdminEmailDomainRoute = AppAdminEmailDomainRouteImport.update({
   path: '/email-domain',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminChwQueueRoute = AppAdminChwQueueRouteImport.update({
+  id: '/chw-queue',
+  path: '/chw-queue',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminChwRoute = AppAdminChwRouteImport.update({
   id: '/chw',
   path: '/chw',
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
+  '/app/admin/chw-queue': typeof AppAdminChwQueueRoute
   '/app/admin/email-domain': typeof AppAdminEmailDomainRoute
   '/app/admin/email-health': typeof AppAdminEmailHealthRoute
   '/app/admin/email-preview': typeof AppAdminEmailPreviewRoute
@@ -235,6 +242,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
+  '/app/admin/chw-queue': typeof AppAdminChwQueueRoute
   '/app/admin/email-domain': typeof AppAdminEmailDomainRoute
   '/app/admin/email-health': typeof AppAdminEmailHealthRoute
   '/app/admin/email-preview': typeof AppAdminEmailPreviewRoute
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
+  '/app/admin/chw-queue': typeof AppAdminChwQueueRoute
   '/app/admin/email-domain': typeof AppAdminEmailDomainRoute
   '/app/admin/email-health': typeof AppAdminEmailHealthRoute
   '/app/admin/email-preview': typeof AppAdminEmailPreviewRoute
@@ -300,6 +309,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/admin/audit'
     | '/app/admin/chw'
+    | '/app/admin/chw-queue'
     | '/app/admin/email-domain'
     | '/app/admin/email-health'
     | '/app/admin/email-preview'
@@ -330,6 +340,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/admin/audit'
     | '/app/admin/chw'
+    | '/app/admin/chw-queue'
     | '/app/admin/email-domain'
     | '/app/admin/email-health'
     | '/app/admin/email-preview'
@@ -361,6 +372,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/admin/audit'
     | '/app/admin/chw'
+    | '/app/admin/chw-queue'
     | '/app/admin/email-domain'
     | '/app/admin/email-health'
     | '/app/admin/email-preview'
@@ -556,6 +568,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminEmailDomainRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/app/admin/chw-queue': {
+      id: '/app/admin/chw-queue'
+      path: '/chw-queue'
+      fullPath: '/app/admin/chw-queue'
+      preLoaderRoute: typeof AppAdminChwQueueRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/chw': {
       id: '/app/admin/chw'
       path: '/chw'
@@ -610,6 +629,7 @@ const AppAdminNotificationsRouteWithChildren =
 interface AppAdminRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminChwRoute: typeof AppAdminChwRoute
+  AppAdminChwQueueRoute: typeof AppAdminChwQueueRoute
   AppAdminEmailDomainRoute: typeof AppAdminEmailDomainRoute
   AppAdminEmailHealthRoute: typeof AppAdminEmailHealthRoute
   AppAdminEmailPreviewRoute: typeof AppAdminEmailPreviewRoute
@@ -624,6 +644,7 @@ interface AppAdminRouteChildren {
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminChwRoute: AppAdminChwRoute,
+  AppAdminChwQueueRoute: AppAdminChwQueueRoute,
   AppAdminEmailDomainRoute: AppAdminEmailDomainRoute,
   AppAdminEmailHealthRoute: AppAdminEmailHealthRoute,
   AppAdminEmailPreviewRoute: AppAdminEmailPreviewRoute,
