@@ -178,3 +178,71 @@ export const updateAssignmentStatus = createServerFn({ method: "POST" })
     });
     return { ok: true, error: null as string | null };
   });
+
+// ---------- Admin queue view ----------
+export const listAdminQueue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      status: z.string().optional().nullable(),
+      stuckOnly: z.boolean().default(false),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) return { error: "Forbidden" as const, rows: [], counts: {} };
+
+    let q = supabaseAdmin
+      .from("chw_assignments")
+      .select("id, task_type, priority, status, due_at, created_at, retry_count, last_error, last_error_at, chw_id, patient_id, chw:chw_workers(display_name)")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (data.status) q = q.eq("status", data.status as "pending");
+    if (data.stuckOnly) {
+      const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      q = q.in("status", ["pending", "accepted"]).lt("created_at", cutoff);
+    }
+    const { data: rows, error } = await q;
+    if (error) return { error: error.message, rows: [], counts: {} };
+
+    const counts: Record<string, number> = {};
+    for (const r of rows ?? []) counts[r.status] = (counts[r.status] ?? 0) + 1;
+    return { error: null as string | null, rows: rows ?? [], counts };
+  });
+
+export const requeueAssignment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) return { ok: false, error: "forbidden" as const };
+
+    const { data: row } = await supabaseAdmin
+      .from("chw_assignments")
+      .select("id, retry_count, status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!row) return { ok: false, error: "not_found" as const };
+
+    const newRetry = (row.retry_count ?? 0) + 1;
+    const { error } = await supabaseAdmin
+      .from("chw_assignments")
+      .update({
+        status: "pending",
+        retry_count: newRetry,
+        last_error: null,
+        last_error_at: null,
+        due_at: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
+      })
+      .eq("id", data.id);
+    if (error) return { ok: false, error: error.message };
+
+    await supabaseAdmin.from("audit_events").insert({
+      actor_id: context.userId,
+      action: "chw.requeued",
+      entity: "chw_assignments",
+      entity_id: data.id,
+      meta: { previous_status: row.status, retry_count: newRetry },
+    });
+    return { ok: true, error: null as string | null, retry_count: newRetry };
+  });

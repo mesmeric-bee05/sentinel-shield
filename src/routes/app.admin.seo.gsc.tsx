@@ -7,6 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getGscState, requestGscToken, verifyAndSubmitSite, resubmitSitemap, listGscHistory } from "@/server/seo.functions";
+import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
+import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
+import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { PageHeader } from "../routes/app";
 
 export const Route = createFileRoute("/app/admin/seo/gsc")({
@@ -41,8 +44,26 @@ function GscPage() {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
+  const [filters, setFilters] = useState<HistoryFilterState>(emptyFilters);
+  const [page, setPage] = useState(1);
+  const filteredHistory = applyHistoryFilter(history, filters, {
+    date: (r) => r.created_at,
+    status: (r) => r.status,
+    searchable: (r) => `${r.kind} ${r.status} ${r.site_url ?? ""} ${r.error_message ?? ""}`,
+  });
+  const { slice: historySlice, total: historyTotal, pages: historyPages } = paginate(filteredHistory, page, 25);
+  const gscExportCols = [
+    { key: "created_at", label: "When", value: (r: HistoryRow) => r.created_at },
+    { key: "kind", label: "Action", value: (r: HistoryRow) => r.kind },
+    { key: "status", label: "Status", value: (r: HistoryRow) => r.status },
+    { key: "http_status", label: "HTTP", value: (r: HistoryRow) => r.http_status ?? "" },
+    { key: "duration_ms", label: "Duration (ms)", value: (r: HistoryRow) => r.duration_ms },
+    { key: "site_url", label: "Site URL", value: (r: HistoryRow) => r.site_url ?? "" },
+    { key: "error_message", label: "Error", value: (r: HistoryRow) => r.error_message ?? "" },
+  ];
+
   if (state && "error" in state && state.error === "Forbidden") {
-    return <div className="p-10"><PageHeader title="Google Search Console" sub="Admin role required." /></div>;
+    return <div className="p-10"><PermissionDeniedCard /></div>;
   }
 
   const connected = state && "connected" in state && state.connected;
@@ -157,8 +178,16 @@ function GscPage() {
             <h3 className="font-medium text-sm">Republish history</h3>
             <Button onClick={load} variant="ghost" size="sm"><RefreshCw className="w-3 h-3 mr-1" />Refresh</Button>
           </div>
-          {history.length === 0 ? (
-            <div className="text-xs text-muted-foreground">No GSC actions logged yet.</div>
+          <HistoryFilters
+            value={filters}
+            onChange={(v) => { setFilters(v); setPage(1); }}
+            statusOptions={[{ value: "success", label: "Success" }, { value: "failed", label: "Failed" }]}
+            searchPlaceholder="Action, site, error…"
+            onExportCsv={() => downloadCsv(timestampedName("gsc-history"), filteredHistory, gscExportCols)}
+            onExportJson={() => downloadJson(timestampedName("gsc-history"), filteredHistory)}
+          />
+          {historySlice.length === 0 ? (
+            <div className="text-xs text-muted-foreground">No GSC actions match the filters.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -173,7 +202,7 @@ function GscPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {history.map((h) => (
+                  {historySlice.map((h) => (
                     <tr key={h.id} className="border-b border-border/50 align-top">
                       <td className="py-2 pr-3 whitespace-nowrap">{new Date(h.created_at).toLocaleString()}</td>
                       <td className="py-2 pr-3"><code>{h.kind}</code></td>
@@ -191,6 +220,8 @@ function GscPage() {
               </table>
             </div>
           )}
+          <div className="text-xs text-muted-foreground mt-2">Showing {historySlice.length} of {historyTotal}</div>
+          <Pager page={page} pages={historyPages} onPage={setPage} />
         </div>
 
         <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Refresh status</Button>

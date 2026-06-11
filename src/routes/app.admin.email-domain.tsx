@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { checkDnsRecords, getEmailDomainSettings, saveEmailDomainSettings, getDeliverySwitchHistory } from "@/server/email-domain.functions";
+import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/email-domain")({
@@ -231,7 +232,17 @@ function EmailDomainWizard() {
       </ol>
 
       <section className="mt-10">
-        <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Delivery mode history</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs uppercase tracking-wider text-muted-foreground">Delivery mode history</h2>
+          <div className="flex gap-1">
+            <button onClick={() => downloadCsv(timestampedName("email-delivery-history"), history, [
+              { key: "created_at", label: "When", value: (r: SwitchRow) => r.created_at },
+              { key: "action", label: "Event", value: (r: SwitchRow) => r.action },
+              { key: "meta", label: "Detail", value: (r: SwitchRow) => r.meta ? JSON.stringify(r.meta) : "" },
+            ])} className="text-[11px] px-2 py-1 rounded border border-border hover:bg-muted/40">Export CSV</button>
+            <button onClick={() => downloadJson(timestampedName("email-delivery-history"), history)} className="text-[11px] px-2 py-1 rounded border border-border hover:bg-muted/40">Export JSON</button>
+          </div>
+        </div>
         <div className="rounded-2xl border border-border bg-card shadow-card overflow-x-auto">
           {history.length === 0 ? (
             <div className="p-4 text-xs text-muted-foreground">No delivery mode changes recorded yet.</div>

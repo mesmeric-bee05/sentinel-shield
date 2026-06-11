@@ -146,11 +146,14 @@ export type Database = {
           created_by: string | null
           due_at: string
           id: string
+          last_error: string | null
+          last_error_at: string | null
           notes: string | null
           patient_id: string
           patient_lat: number | null
           patient_lng: number | null
           priority: Database["public"]["Enums"]["chw_priority"]
+          retry_count: number
           status: Database["public"]["Enums"]["chw_assignment_status"]
           task_type: Database["public"]["Enums"]["chw_task_type"]
           updated_at: string
@@ -161,11 +164,14 @@ export type Database = {
           created_by?: string | null
           due_at?: string
           id?: string
+          last_error?: string | null
+          last_error_at?: string | null
           notes?: string | null
           patient_id: string
           patient_lat?: number | null
           patient_lng?: number | null
           priority?: Database["public"]["Enums"]["chw_priority"]
+          retry_count?: number
           status?: Database["public"]["Enums"]["chw_assignment_status"]
           task_type?: Database["public"]["Enums"]["chw_task_type"]
           updated_at?: string
@@ -176,11 +182,14 @@ export type Database = {
           created_by?: string | null
           due_at?: string
           id?: string
+          last_error?: string | null
+          last_error_at?: string | null
           notes?: string | null
           patient_id?: string
           patient_lat?: number | null
           patient_lng?: number | null
           priority?: Database["public"]["Enums"]["chw_priority"]
+          retry_count?: number
           status?: Database["public"]["Enums"]["chw_assignment_status"]
           task_type?: Database["public"]["Enums"]["chw_task_type"]
           updated_at?: string
@@ -309,9 +318,12 @@ export type Database = {
       gsc_republish_log: {
         Row: {
           actor_id: string | null
+          attempt_number: number
           created_at: string
           duration_ms: number | null
+          error_code: string | null
           error_message: string | null
+          error_reason: string | null
           http_status: number | null
           id: string
           kind: string
@@ -320,9 +332,12 @@ export type Database = {
         }
         Insert: {
           actor_id?: string | null
+          attempt_number?: number
           created_at?: string
           duration_ms?: number | null
+          error_code?: string | null
           error_message?: string | null
+          error_reason?: string | null
           http_status?: number | null
           id?: string
           kind: string
@@ -331,9 +346,12 @@ export type Database = {
         }
         Update: {
           actor_id?: string | null
+          attempt_number?: number
           created_at?: string
           duration_ms?: number | null
+          error_code?: string | null
           error_message?: string | null
+          error_reason?: string | null
           http_status?: number | null
           id?: string
           kind?: string
