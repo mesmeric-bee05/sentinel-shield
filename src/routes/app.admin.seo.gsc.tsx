@@ -178,8 +178,16 @@ function GscPage() {
             <h3 className="font-medium text-sm">Republish history</h3>
             <Button onClick={load} variant="ghost" size="sm"><RefreshCw className="w-3 h-3 mr-1" />Refresh</Button>
           </div>
-          {history.length === 0 ? (
-            <div className="text-xs text-muted-foreground">No GSC actions logged yet.</div>
+          <HistoryFilters
+            value={filters}
+            onChange={(v) => { setFilters(v); setPage(1); }}
+            statusOptions={[{ value: "success", label: "Success" }, { value: "failed", label: "Failed" }]}
+            searchPlaceholder="Action, site, error…"
+            onExportCsv={() => downloadCsv(timestampedName("gsc-history"), filteredHistory, gscExportCols)}
+            onExportJson={() => downloadJson(timestampedName("gsc-history"), filteredHistory)}
+          />
+          {historySlice.length === 0 ? (
+            <div className="text-xs text-muted-foreground">No GSC actions match the filters.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -194,7 +202,7 @@ function GscPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {history.map((h) => (
+                  {historySlice.map((h) => (
                     <tr key={h.id} className="border-b border-border/50 align-top">
                       <td className="py-2 pr-3 whitespace-nowrap">{new Date(h.created_at).toLocaleString()}</td>
                       <td className="py-2 pr-3"><code>{h.kind}</code></td>
@@ -212,6 +220,8 @@ function GscPage() {
               </table>
             </div>
           )}
+          <div className="text-xs text-muted-foreground mt-2">Showing {historySlice.length} of {historyTotal}</div>
+          <Pager page={page} pages={historyPages} onPage={setPage} />
         </div>
 
         <Button onClick={load} variant="outline" size="sm"><RefreshCw className="w-4 h-4 mr-2" />Refresh status</Button>
