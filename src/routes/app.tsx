@@ -35,6 +35,7 @@ function AppShell() {
     { to: "/app/admin", label: "Operations", icon: Users, show: isAdmin },
     { to: "/app/admin/geo", label: "Geo intel", icon: Map, show: isAdmin },
     { to: "/app/admin/chw", label: "CHW mesh", icon: UsersRound, show: isAdmin },
+    { to: "/app/admin/chw-queue", label: "CHW queue", icon: UsersRound, show: isAdmin },
     { to: "/app/admin/audit", label: "Audit log", icon: FileSearch, show: isAdmin },
     { to: "/app/admin/notifications", label: "Notifications", icon: Bell, show: isAdmin },
     { to: "/app/admin/notifications/resend", label: "Resend email", icon: Mail, show: isAdmin },
