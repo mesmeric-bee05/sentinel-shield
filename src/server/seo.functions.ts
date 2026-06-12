@@ -242,8 +242,6 @@ export const runSeoAudit = createServerFn({ method: "GET" })
     }
     const startedAt = new Date();
     const checks: SeoCheck[] = [];
-    const startedAt = new Date();
-    const checks: SeoCheck[] = [];
 
     const home = await fetchText(`${SITE}/`);
     const robots = await fetchText(`${SITE}/robots.txt`);
