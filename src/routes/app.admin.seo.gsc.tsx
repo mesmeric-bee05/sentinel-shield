@@ -10,6 +10,7 @@ import { getGscState, requestGscToken, verifyAndSubmitSite, resubmitSitemap, lis
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
 import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
+import { reasonFromResult } from "@/lib/permission";
 import { PageHeader } from "../routes/app";
 
 export const Route = createFileRoute("/app/admin/seo/gsc")({
@@ -62,8 +63,9 @@ function GscPage() {
     { key: "error_message", label: "Error", value: (r: HistoryRow) => r.error_message ?? "" },
   ];
 
-  if (state && "error" in state && state.error === "Forbidden") {
-    return <div className="p-10"><PermissionDeniedCard /></div>;
+  const denial = state ? reasonFromResult(state) : null;
+  if (denial) {
+    return <div className="p-10"><PermissionDeniedCard info={denial} onRetry={load} /></div>;
   }
 
   const connected = state && "connected" in state && state.connected;

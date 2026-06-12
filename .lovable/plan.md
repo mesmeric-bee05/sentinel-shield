@@ -1,70 +1,52 @@
+## Goals
+Harden mutating server endpoints, give admins a consistent "insufficient permissions" experience, make the CHW queue diagnostics actionable, and surface the security posture (live findings + accepted-risk records) inside the app.
 
-## Scope
+## 1. CSRF + authorization hardening
+- Add `src/server/csrf.server.ts`: issues an HMAC-signed token (server secret + userId + timestamp) and verifies `x-csrf-token` header against the bearer-token subject; rejects with `403 csrf_invalid` on mismatch or >2h age.
+- Add a `requireCsrf` server function middleware that runs after `requireSupabaseAuth`; apply to every mutating `createServerFn` in `src/server/email-domain.functions.ts`, `src/server/chw.functions.ts` (dispatch/update/requeue/upsert worker), `src/server/seo.functions.ts` (GSC verify/sitemap/republish/audit run), `src/server/roles.functions.ts`, `src/server/notifications.resend.functions.ts`, `src/server/holds.functions.ts`, `src/lib/email-preview.functions.ts`.
+- Add `getCsrfToken` server fn + client helper `useCsrfToken()` that caches the token and attaches it through a global client middleware appended to `functionMiddleware` in `src/start.ts` (alongside `attachSupabaseAuth`).
+- Add an explicit admin assertion helper (`assertAdmin(context)`) used by every admin-only fn so role checks are uniform and audit-logged on denial.
 
-Five tightly-related admin upgrades plus continued project hardening. All work stays inside the admin surface (`/app/admin/*`) and the server functions backing it. No schema redesigns — only additive columns/tables.
+## 2. Consistent "insufficient permissions" UX
+- Extend `src/components/admin/PermissionDeniedCard.tsx` with optional `actionHref`/`actionLabel` and a recovery checklist (request admin role, sign in with different account, contact workspace owner).
+- Add `src/lib/permission.ts#isForbidden(result)` that detects `error === "Forbidden"` / `403` / `csrf_invalid` from any server fn response.
+- Wire it into `app.admin.seo.gsc.tsx`, `app.admin.email-domain.tsx`, `app.admin.seo-audit.tsx`, `app.admin.chw-queue.tsx`, `app.admin.audit.tsx` so the same card renders for all four denial modes with cause-specific copy ("Admin role required", "Session expired – sign in again", "CSRF token invalid – reload page").
 
-## 1. Exports (CSV + JSON) for history panels
+## 3. CHW queue diagnostics + correct re-run
+- Migration: add `stuck_at` generated timestamp helper as a view `chw_queue_health` (status, age, retry_count, last_error, last_error_at, expected SLA per priority).
+- `listAdminQueue` returns: per-status counts, stuck buckets (>30m pending / >2h in_progress / failed-with-error), and SLA breach flags.
+- New `requeueFailed({ ids?: string[] | "all_failed" })` that only operates on rows whose `status in ('cancelled','escalated')` OR `last_error is not null`; existing `requeueAssignment` stays for single-row admin override. Both bump `retry_count`, clear `last_error`, log to `audit_events` and to a new `chw_requeue_log` table (assignment_id, previous_status, retry_count, actor_id).
+- Admin UI in `app.admin.chw-queue.tsx`: tabs "All / Stuck / Failed", expandable row showing last_error + last_error_at + retry history (joined from log), bulk "Re-run failed only" button that is disabled when no rows qualify.
 
-Add a shared `useHistoryExport` helper in `src/lib/exports.ts` that turns an array of rows + a column map into either a CSV blob or a JSON blob and triggers a download. Wire two buttons ("Export CSV", "Export JSON") into:
+## 4. Security tracker page
+- New route `src/routes/app.admin.security.tsx` (admin-gated).
+- New server fn `listSecurityFindings` reading from a new `security_findings` table (scanner_name, internal_id, title, severity, resource, status: open/fixed/ignored, rationale, last_seen_at, first_seen_at). Service-role only writes; admin read.
+- New `src/routes/api/public/security-sync.ts` server route, HMAC-protected via `SECURITY_SYNC_SECRET`, accepts the scanner JSON payload and upserts findings (idempotent on scanner_name+internal_id).
+- UI: filter by severity/status/scanner, badge for "Documented accepted risk", link-out to remediation note. Initial seed migration inserts the two accepted-risk records (`care_facilities_phone_public`, `SUPA_authenticated_security_definer_function_executable`) with their rationale text already captured in security memory.
 
-- `app.admin.seo.gsc.tsx` → republish history panel (from `listGscHistory`)
-- `app.admin.email-domain.tsx` → delivery-switch history panel (from `getDeliverySwitchHistory`)
-- `app.admin.seo-audit.tsx` → audit run history panel (from `listSeoAuditRuns`)
+## 5. Accepted-risk remediation records
+- Add `docs/security/accepted-risks.md` with one entry per ignored finding: ID, scanner, scope, rationale, compensating controls (RLS scoping, self-auth in definer functions), review cadence (next review date), and owner.
+- Tracker page links each `status='ignored'` row to its `docs/security/accepted-risks.md` anchor.
 
-Exports respect the active filter/search state so admins download what they see.
+## 6. RLS / authorization test harness
+- Add `tests/security/rls.test.ts` (vitest) that:
+  - Creates ephemeral patient/provider/admin/CHW users via service role.
+  - For every protected server fn, asserts unauthenticated → 401, wrong-role → forbidden, correct-role → ok.
+  - For PHI tables (`profiles`, `chw_assignments`, `chw_check_ins`, `chw_workers`), asserts providerA cannot read providerB's patient rows.
+  - Asserts `chw_assignments` is absent from `supabase_realtime` publication.
+- Add `bun test:security` script. Tests run against the dev Supabase project using `SUPABASE_SERVICE_ROLE_KEY` from env; skipped when key missing so CI on forks doesn't fail.
 
-## 2. Retries with backoff + clear failure reasons
+## 7. Re-run all scanners + report
+- After implementation, call `security--run_security_scan` and `connector_security_scan` via the security toolset; surface any new findings in the new tracker page and in the chat reply (no findings asserted as fixed unless re-scan confirms).
 
-In `src/server/seo.functions.ts`, wrap the GSC verify, sitemap submit, and URL-inspection calls in a `withRetry(fn, { tries: 3, baseMs: 750 })` helper (exponential backoff, jitter, only retry on network / 5xx / 429). Each attempt is logged to `gsc_republish_log` with `attempt_number`, `status`, `error_code`, and `error_reason` parsed from the gateway response. Final failure surfaces a stable `reason` string (`network`, `unauthorized`, `not_verified`, `quota`, `unknown`) plus the raw message.
+## Technical notes
+- CSRF token derivation: `hmacSHA256(SESSION_SECRET, userId + "|" + issuedAt)`; client fetches on auth state change and caches in memory only (never localStorage).
+- All new server fns return `{ error: "Forbidden" | "csrf_invalid" | null, ... }` so `PermissionDeniedCard` switch can render the right copy without inspecting strings.
+- New tables added in one migration, with explicit `GRANT` to `authenticated` (read) and `service_role` (all), RLS policies `has_role(auth.uid(),'admin')` for read.
+- Realtime stays disabled for `chw_assignments`; the admin queue uses polling on a 10s interval plus manual refresh.
 
-In the UI:
-- GSC page shows last failure card with the parsed reason + raw message and a "Retry now" button (calls the same server fn).
-- Email-domain wizard's DNS recheck and SEO audit rerun get the same retry semantics + manual retry control.
-
-## 3. Filters, search, pagination for the three history panels
-
-Extend `listGscHistory`, `getDeliverySwitchHistory`, `listSeoAuditRuns` to accept:
-
-```
-{ from?: string; to?: string; status?: string; q?: string; page: number; pageSize: number }
-```
-
-Server applies date range, status filter (pass/fail/warn or success/error), free-text search (subdomain / site URL / action), returns `{ rows, total }`. UI adds a filter bar (date range, status select, search input) and `Pagination` controls. Default page size 25.
-
-## 4. CHW queue admin view (realtime)
-
-New route `src/routes/app.admin.chw-queue.tsx` (admin-only). Reads from `chw_assignments` joined with `chw_check_ins`. Surfaces:
-
-- Live counts by status (pending / accepted / in_progress / completed / cancelled / escalated / failed).
-- Table with timestamp, task type, priority, assigned CHW, retry count, last error.
-- "Re-run" button on stuck rows (status `pending` older than SLA, or `failed`) — calls a new server fn `requeueAssignment` that resets status to `pending`, increments `retry_count`, logs to `audit_events`.
-- Realtime updates via `supabase.channel('admin-chw').on('postgres_changes', ...)` subscription so the table refreshes without polling.
-
-Adds `retry_count` (int, default 0) and `last_error` (text) columns to `chw_assignments` via migration.
-
-## 5. Authorization + CSRF hardening
-
-Centralize admin-gate checks in a new server middleware `requireAdmin` (calls `has_role` once, throws 403). Apply to every mutating fn in `email-domain.functions.ts`, `seo.functions.ts`, `chw.functions.ts` admin paths, and the new queue fn. CSRF: add a same-origin check helper in `src/lib/csrf.server.ts` that inspects `Origin`/`Referer` headers inside `requireAdmin`; reject cross-origin POSTs with 403.
-
-UI: shared `<PermissionDeniedCard reason="..." />` rendered when any of these admin queries return `{ error: "Forbidden" }`. Replaces today's silent empty states on the email-domain, GSC, audit, and queue pages.
-
-## 6. Continued project work (in-scope side fixes)
-
-- CHW queue patient view (`/app/chw`): finish the empty-state copy and ensure the "Message" / "Call" buttons on `app.appointments.tsx` open the telemedicine room / `tel:` link reliably.
-- Booking flow: add `requireSupabaseAuth` + ownership check on `reserveSlot` / `confirmBooking` server fns, and surface "insufficient permissions" in `BookingDialog` instead of a generic error toast.
-
-## Technical Notes
-
-- New files: `src/lib/exports.ts`, `src/lib/csrf.server.ts`, `src/lib/retry.ts`, `src/routes/app.admin.chw-queue.tsx`, `src/components/admin/PermissionDeniedCard.tsx`, `src/components/admin/HistoryFilters.tsx`.
-- Edited: the three admin route files, `src/server/seo.functions.ts`, `src/server/email-domain.functions.ts`, `src/server/chw.functions.ts`, `src/components/booking/BookingDialog.tsx`, `src/routes/app.appointments.tsx`, `src/integrations/supabase/auth-middleware.ts` (add `requireAdmin` export).
-- Migration adds `retry_count`, `last_error`, `last_error_at` to `chw_assignments`; adds `attempt_number`, `error_code`, `error_reason` to `gsc_republish_log`.
-- Retry helper is pure TS, no new dependency.
-- CSV export uses `Blob` + `URL.createObjectURL`, no library.
-
-## Out of Scope
-
-- Reworking the underlying GSC OAuth handshake (already in place via the Lovable connector).
-- Building a generic background-job runner — CHW "re-run" is a direct DB status reset + audit log, not a new queue system.
-- Mobile-app or CHW-worker push notification integration.
-
-Confirm and I'll implement.
+## Out of scope
+- Per-user CSRF rotation on every request (we use session-bound token with 2h TTL).
+- Replacing the GSC OAuth handshake.
+- Adding push notifications for stuck-job alerts (logged only; email/SMS alerting tracked separately).
+- Wiz scanner integration beyond reading whatever `connector_security_scan` already returns.

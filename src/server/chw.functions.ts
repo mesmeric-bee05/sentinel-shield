@@ -210,7 +210,7 @@ export const listAdminQueue = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
-    if (!isAdmin) return { error: "Forbidden" as const, rows: [], counts: {} };
+    if (!isAdmin) return { error: "Forbidden" as const, rows: [], counts: {}, buckets: { stuck: 0, failed: 0, breached: 0 } };
 
     let q = supabaseAdmin
       .from("chw_assignments")
@@ -223,12 +223,92 @@ export const listAdminQueue = createServerFn({ method: "POST" })
       q = q.in("status", ["pending", "accepted"]).lt("created_at", cutoff);
     }
     const { data: rows, error } = await q;
-    if (error) return { error: error.message, rows: [], counts: {} };
+    if (error) return { error: error.message, rows: [], counts: {}, buckets: { stuck: 0, failed: 0, breached: 0 } };
+
+    const now = Date.now();
+    // Stuck buckets:
+    //  - pending/accepted > 30m
+    //  - in_progress > 2h
+    //  - any row with a last_error (failed/cancelled/escalated counted separately)
+    const isStuckPending = (r: { status: string; created_at: string }) =>
+      (r.status === "pending" || r.status === "accepted") && now - new Date(r.created_at).getTime() > 30 * 60 * 1000;
+    const isStuckProgress = (r: { status: string; created_at: string }) =>
+      r.status === "in_progress" && now - new Date(r.created_at).getTime() > 2 * 60 * 60 * 1000;
+    const isFailed = (r: { status: string; last_error: string | null }) =>
+      r.status === "cancelled" || r.status === "escalated" || !!r.last_error;
+    const isBreached = (r: { due_at: string | null; status: string }) =>
+      !!r.due_at && now > new Date(r.due_at).getTime() && r.status !== "completed";
 
     const counts: Record<string, number> = {};
-    for (const r of rows ?? []) counts[r.status] = (counts[r.status] ?? 0) + 1;
-    return { error: null as string | null, rows: rows ?? [], counts };
+    let stuck = 0, failed = 0, breached = 0;
+    for (const r of rows ?? []) {
+      counts[r.status] = (counts[r.status] ?? 0) + 1;
+      if (isStuckPending(r) || isStuckProgress(r)) stuck++;
+      if (isFailed(r)) failed++;
+      if (isBreached(r)) breached++;
+    }
+    return {
+      error: null as string | null,
+      rows: rows ?? [],
+      counts,
+      buckets: { stuck, failed, breached },
+    };
   });
+
+// Bulk re-run: only operates on assignments that have failed (cancelled,
+// escalated, or carry a last_error). Safe to invoke from the admin queue
+// "Re-run failed" action — never touches in-flight or completed work.
+export const requeueFailed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      ids: z.array(z.string().uuid()).max(200).optional().nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) return { ok: false, error: "forbidden" as const, requeued: 0 };
+
+    let q = supabaseAdmin
+      .from("chw_assignments")
+      .select("id, retry_count, status, last_error");
+    if (data.ids && data.ids.length > 0) q = q.in("id", data.ids);
+    const { data: candidates, error } = await q;
+    if (error) return { ok: false, error: error.message, requeued: 0 };
+
+    const eligible = (candidates ?? []).filter(
+      (r) => r.status === "cancelled" || r.status === "escalated" || !!r.last_error,
+    );
+    if (eligible.length === 0) return { ok: true, error: null as string | null, requeued: 0 };
+
+    const dueAt = new Date(Date.now() + 4 * 3600 * 1000).toISOString();
+    let requeued = 0;
+    for (const row of eligible) {
+      const newRetry = (row.retry_count ?? 0) + 1;
+      const { error: upErr } = await supabaseAdmin
+        .from("chw_assignments")
+        .update({
+          status: "pending",
+          retry_count: newRetry,
+          last_error: null,
+          last_error_at: null,
+          due_at: dueAt,
+        })
+        .eq("id", row.id);
+      if (!upErr) {
+        requeued++;
+        await supabaseAdmin.from("audit_events").insert({
+          actor_id: context.userId,
+          action: "chw.requeued_bulk",
+          entity: "chw_assignments",
+          entity_id: row.id,
+          meta: { previous_status: row.status, retry_count: newRetry, scope: data.ids?.length ? "ids" : "all_failed" },
+        });
+      }
+    }
+    return { ok: true, error: null as string | null, requeued };
+  });
+
 
 export const requeueAssignment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
