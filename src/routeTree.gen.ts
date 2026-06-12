@@ -27,6 +27,7 @@ import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
 import { Route as AppAdminRouteImport } from './routes/app.admin'
 import { Route as AppRoomAppointmentIdRouteImport } from './routes/app.room.$appointmentId'
 import { Route as AppAdminSeoAuditRouteImport } from './routes/app.admin.seo-audit'
+import { Route as AppAdminSecurityRouteImport } from './routes/app.admin.security'
 import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
 import { Route as AppAdminNotificationsRouteImport } from './routes/app.admin.notifications'
 import { Route as AppAdminGeoRouteImport } from './routes/app.admin.geo'
@@ -130,6 +131,11 @@ const AppAdminSeoAuditRoute = AppAdminSeoAuditRouteImport.update({
   path: '/seo-audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminSecurityRoute = AppAdminSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminRolesRoute = AppAdminRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -218,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/geo': typeof AppAdminGeoRoute
   '/app/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
   '/app/admin/roles': typeof AppAdminRolesRoute
+  '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
   '/app/admin/notifications/resend': typeof AppAdminNotificationsResendRoute
@@ -249,6 +256,7 @@ export interface FileRoutesByTo {
   '/app/admin/geo': typeof AppAdminGeoRoute
   '/app/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
   '/app/admin/roles': typeof AppAdminRolesRoute
+  '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
   '/app/admin/notifications/resend': typeof AppAdminNotificationsResendRoute
@@ -282,6 +290,7 @@ export interface FileRoutesById {
   '/app/admin/geo': typeof AppAdminGeoRoute
   '/app/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
   '/app/admin/roles': typeof AppAdminRolesRoute
+  '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
   '/app/admin/notifications/resend': typeof AppAdminNotificationsResendRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
     | '/app/admin/geo'
     | '/app/admin/notifications'
     | '/app/admin/roles'
+    | '/app/admin/security'
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
     | '/app/admin/notifications/resend'
@@ -347,6 +357,7 @@ export interface FileRouteTypes {
     | '/app/admin/geo'
     | '/app/admin/notifications'
     | '/app/admin/roles'
+    | '/app/admin/security'
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
     | '/app/admin/notifications/resend'
@@ -379,6 +390,7 @@ export interface FileRouteTypes {
     | '/app/admin/geo'
     | '/app/admin/notifications'
     | '/app/admin/roles'
+    | '/app/admin/security'
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
     | '/app/admin/notifications/resend'
@@ -526,6 +538,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminSeoAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/app/admin/security': {
+      id: '/app/admin/security'
+      path: '/security'
+      fullPath: '/app/admin/security'
+      preLoaderRoute: typeof AppAdminSecurityRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/roles': {
       id: '/app/admin/roles'
       path: '/roles'
@@ -636,6 +655,7 @@ interface AppAdminRouteChildren {
   AppAdminGeoRoute: typeof AppAdminGeoRoute
   AppAdminNotificationsRoute: typeof AppAdminNotificationsRouteWithChildren
   AppAdminRolesRoute: typeof AppAdminRolesRoute
+  AppAdminSecurityRoute: typeof AppAdminSecurityRoute
   AppAdminSeoAuditRoute: typeof AppAdminSeoAuditRoute
   AppAdminSeoGscRoute: typeof AppAdminSeoGscRoute
   AppAdminTestSmsRoute: typeof AppAdminTestSmsRoute
@@ -651,6 +671,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminGeoRoute: AppAdminGeoRoute,
   AppAdminNotificationsRoute: AppAdminNotificationsRouteWithChildren,
   AppAdminRolesRoute: AppAdminRolesRoute,
+  AppAdminSecurityRoute: AppAdminSecurityRoute,
   AppAdminSeoAuditRoute: AppAdminSeoAuditRoute,
   AppAdminSeoGscRoute: AppAdminSeoGscRoute,
   AppAdminTestSmsRoute: AppAdminTestSmsRoute,
