@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const LOVABLE_AI = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-3-flash-preview";
@@ -24,6 +25,7 @@ const SuggestInput = z.object({
 });
 
 export const suggestSlots = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d) => SuggestInput.parse(d))
   .handler(async ({ data }) => {
     try {
@@ -71,6 +73,7 @@ export const suggestSlots = createServerFn({ method: "POST" })
 
 const SummaryInput = z.object({ reason: z.string().min(3).max(2000) });
 export const summarizeIntake = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d) => SummaryInput.parse(d))
   .handler(async ({ data }) => {
     try {
@@ -90,6 +93,7 @@ export const summarizeIntake = createServerFn({ method: "POST" })
 
 const ScribeInput = z.object({ transcript: z.string().min(3).max(8000) });
 export const scribeDraft = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d) => ScribeInput.parse(d))
   .handler(async ({ data }) => {
     try {
