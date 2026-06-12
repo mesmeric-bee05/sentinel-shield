@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { checkDnsRecords, getEmailDomainSettings, saveEmailDomainSettings, getDeliverySwitchHistory } from "@/server/email-domain.functions";
 import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
+import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
+import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/email-domain")({
@@ -40,25 +42,28 @@ function EmailDomainWizard() {
   const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [history, setHistory] = useState<SwitchRow[]>([]);
+  const [forbidden, setForbidden] = useState<ForbiddenInfo | null>(null);
 
   const loadHistory = async () => {
     const r = await histFn({}).catch(() => ({ rows: [] as SwitchRow[] }));
     if ("rows" in r) setHistory(r.rows as SwitchRow[]);
   };
 
-  useEffect(() => {
-    (async () => {
-      const r = await loadFn({});
-      if ("error" in r && r.error) return;
-      if ("settings" in r && r.settings) {
-        setDomain(r.settings.sender_domain ?? "");
-        setMode((r.settings.delivery_mode as "sandbox" | "live") ?? "sandbox");
-        setLiveSinceAt(r.settings.live_since_at ?? null);
-        setLastCheckedAt(r.settings.last_dns_check_at ?? null);
-      }
-      void loadHistory();
-    })();
-  }, [loadFn]);
+  const loadAll = async () => {
+    const r = await loadFn({});
+    const denial = reasonFromResult(r);
+    if (denial) { setForbidden(denial); return; }
+    setForbidden(null);
+    if ("settings" in r && r.settings) {
+      setDomain(r.settings.sender_domain ?? "");
+      setMode((r.settings.delivery_mode as "sandbox" | "live") ?? "sandbox");
+      setLiveSinceAt(r.settings.live_since_at ?? null);
+      setLastCheckedAt(r.settings.last_dns_check_at ?? null);
+    }
+    void loadHistory();
+  };
+
+  useEffect(() => { void loadAll(); /* eslint-disable-next-line */ }, []);
 
   useEffect(() => {
     if (!polling || !domain || allPass) return;
