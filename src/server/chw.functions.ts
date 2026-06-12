@@ -52,6 +52,17 @@ export const listAssignments = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    // Authorization: only admin, provider, or CHW workers can list non-own assignments.
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    const { data: isProv } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "provider" });
+    const { data: meWorker } = await supabaseAdmin
+      .from("chw_workers").select("id").eq("user_id", context.userId).maybeSingle();
+    const isChw = !!meWorker;
+
+    if (!data.onlyMine && !isAdmin && !isProv && !isChw) {
+      return { assignments: [], error: "forbidden" as const };
+    }
+
     let q = supabaseAdmin
       .from("chw_assignments")
       .select("*, chw:chw_workers(display_name, user_id)")
@@ -59,9 +70,18 @@ export const listAssignments = createServerFn({ method: "POST" })
       .limit(200);
     if (data.status) q = q.eq("status", data.status as "pending");
     if (data.onlyMine) {
-      const { data: me } = await supabaseAdmin.from("chw_workers").select("id").eq("user_id", context.userId).maybeSingle();
-      if (!me) return { assignments: [], error: null as string | null };
-      q = q.eq("chw_id", me.id);
+      if (!meWorker) return { assignments: [], error: null as string | null };
+      q = q.eq("chw_id", meWorker.id);
+    } else if (isProv && !isAdmin) {
+      // Scope providers to assignments for patients they actually treat (via appointments).
+      const { data: prov } = await supabaseAdmin
+        .from("providers").select("id").eq("user_id", context.userId).maybeSingle();
+      if (!prov) return { assignments: [], error: null as string | null };
+      const { data: appts } = await supabaseAdmin
+        .from("appointments").select("patient_id").eq("provider_id", prov.id);
+      const patientIds = Array.from(new Set((appts ?? []).map((a) => a.patient_id)));
+      if (patientIds.length === 0) return { assignments: [], error: null as string | null };
+      q = q.in("patient_id", patientIds);
     }
     const { data: rows, error } = await q;
     return { assignments: rows ?? [], error: error?.message ?? null };

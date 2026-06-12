@@ -230,7 +230,18 @@ export const runSeoAudit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
-    if (!isAdmin) return { error: "Forbidden" as const, runId: null, startedAt: new Date().toISOString(), durationMs: 0, checks: [] };
+    if (!isAdmin) {
+      const now = new Date().toISOString();
+      return {
+        checks: [] as SeoCheck[],
+        summary: { pass: 0, warn: 0, fail: 0, total: 0 },
+        generatedAt: now,
+        durationMs: 0,
+        error: "Forbidden" as const,
+      };
+    }
+    const startedAt = new Date();
+    const checks: SeoCheck[] = [];
     const startedAt = new Date();
     const checks: SeoCheck[] = [];
 
