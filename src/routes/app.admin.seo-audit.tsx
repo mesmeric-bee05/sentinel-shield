@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { runSeoAudit, listSeoAuditRuns, type SeoCheck } from "@/server/seo.functions";
 import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
+import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
+import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/seo-audit")({
@@ -33,6 +35,7 @@ function SeoAuditPage() {
   const [durationMs, setDurationMs] = useState<number | null>(null);
   const [runCount, setRunCount] = useState(0);
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [forbidden, setForbidden] = useState<ForbiddenInfo | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadHistory = async () => {
@@ -49,6 +52,9 @@ function SeoAuditPage() {
     }, 250);
     try {
       const r = await fn({});
+      const denial = reasonFromResult(r);
+      if (denial) { setForbidden(denial); return; }
+      setForbidden(null);
       setChecks(r.checks);
       setSummary(r.summary);
       setAt(r.generatedAt);

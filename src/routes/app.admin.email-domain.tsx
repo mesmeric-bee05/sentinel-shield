@@ -124,6 +124,8 @@ function EmailDomainWizard() {
   const pct = checks ? Math.round((passCount / totalCount) * 100) : 0;
   const corePass = checks?.filter((c) => c.id === "dkim" || c.id === "spf" || c.id === "dmarc") ?? [];
 
+  if (forbidden) return <div className="p-10"><PermissionDeniedCard info={forbidden} onRetry={loadAll} /></div>;
+
   return (
     <div className="p-10 max-w-5xl mx-auto">
       <PageHeader title="Sender domain wizard" sub="Guide bookings from sandbox preview to real delivery in four steps: pick a domain, ship DNS records, watch live verification, then activate." />
