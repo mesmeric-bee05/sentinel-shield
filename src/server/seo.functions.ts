@@ -227,7 +227,10 @@ async function fetchText(url: string): Promise<{ ok: boolean; text: string; stat
 }
 
 export const runSeoAudit = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) return { error: "Forbidden" as const, runId: null, startedAt: new Date().toISOString(), durationMs: 0, checks: [] };
     const startedAt = new Date();
     const checks: SeoCheck[] = [];
 
