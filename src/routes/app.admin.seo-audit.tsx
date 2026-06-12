@@ -89,6 +89,8 @@ function SeoAuditPage() {
     triggerDownload(new Blob([header + body], { type: "text/csv" }), `seo-audit-${Date.now()}.csv`);
   };
 
+  if (forbidden) return <div className="p-10"><PermissionDeniedCard info={forbidden} onRetry={run} /></div>;
+
   return (
     <div className="p-10 max-w-5xl mx-auto">
       <PageHeader
