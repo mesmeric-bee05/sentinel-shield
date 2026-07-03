@@ -6,7 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { bootstrapFirstAdmin, getSystemRoleStatus } from "@/server/roles.functions";
+import { bootstrapFirstAdmin, getSystemRoleStatus } from "@/lib/roles.functions";
 
 export const Route = createFileRoute("/app/bootstrap")({
   beforeLoad: async () => {

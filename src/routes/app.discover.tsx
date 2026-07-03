@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "./app";
-import { suggestSlots } from "@/server/ai.functions";
+import { suggestSlots } from "@/lib/ai.functions";
 import { BookingDialog, type BookingProvider, type BookingSlot, type RankedSuggestion } from "@/components/booking/BookingDialog";
 
 export const Route = createFileRoute("/app/discover")({

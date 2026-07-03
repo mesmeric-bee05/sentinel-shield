@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
-import { bookAppointment } from "@/server/appointments.functions";
-import { summarizeIntake } from "@/server/ai.functions";
-import { holdSlot, releaseSlot } from "@/server/holds.functions";
-import { getPatientContact } from "@/server/profile.functions";
+import { bookAppointment } from "@/lib/appointments.functions";
+import { summarizeIntake } from "@/lib/ai.functions";
+import { holdSlot, releaseSlot } from "@/lib/holds.functions";
+import { getPatientContact } from "@/lib/profile.functions";
 import { buildIcs, downloadIcs } from "@/lib/ics";
 import { getBrowserTimeZone, formatInTz, formatUtc } from "@/lib/timezone";
 

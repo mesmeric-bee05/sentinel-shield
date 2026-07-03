@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2,
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { listAdminQueue, requeueAssignment, requeueFailed } from "@/server/chw.functions";
+import { listAdminQueue, requeueAssignment, requeueFailed } from "@/lib/chw.functions";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";

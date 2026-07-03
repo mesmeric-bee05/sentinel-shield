@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { listAuditEvents, distinctAuditFacets } from "@/server/audit.functions";
+import { listAuditEvents, distinctAuditFacets } from "@/lib/audit.functions";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/audit")({

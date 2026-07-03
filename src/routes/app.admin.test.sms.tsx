@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { getPatientContact, updatePatientContact } from "@/server/profile.functions";
+import { getPatientContact, updatePatientContact } from "@/lib/profile.functions";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/test/sms")({
