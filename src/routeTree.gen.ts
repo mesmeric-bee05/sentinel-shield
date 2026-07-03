@@ -37,6 +37,7 @@ import { Route as AppAdminEmailDomainRouteImport } from './routes/app.admin.emai
 import { Route as AppAdminChwQueueRouteImport } from './routes/app.admin.chw-queue'
 import { Route as AppAdminChwRouteImport } from './routes/app.admin.chw'
 import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
+import { Route as ApiPublicSecuritySyncRouteImport } from './routes/api/public/security-sync'
 import { Route as AppAdminTestSmsRouteImport } from './routes/app.admin.test.sms'
 import { Route as AppAdminSeoGscRouteImport } from './routes/app.admin.seo.gsc'
 import { Route as AppAdminNotificationsResendRouteImport } from './routes/app.admin.notifications.resend'
@@ -181,6 +182,11 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const ApiPublicSecuritySyncRoute = ApiPublicSecuritySyncRouteImport.update({
+  id: '/api/public/security-sync',
+  path: '/api/public/security-sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppAdminTestSmsRoute = AppAdminTestSmsRouteImport.update({
   id: '/test/sms',
   path: '/test/sms',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
+  '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
   '/app/admin/chw-queue': typeof AppAdminChwQueueRoute
@@ -247,6 +254,7 @@ export interface FileRoutesByTo {
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app': typeof AppIndexRoute
+  '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
   '/app/admin/chw-queue': typeof AppAdminChwQueueRoute
@@ -281,6 +289,7 @@ export interface FileRoutesById {
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
+  '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
   '/app/admin/chw-queue': typeof AppAdminChwQueueRoute
@@ -316,6 +325,7 @@ export interface FileRouteTypes {
     | '/app/discover'
     | '/app/provider'
     | '/app/'
+    | '/api/public/security-sync'
     | '/app/admin/audit'
     | '/app/admin/chw'
     | '/app/admin/chw-queue'
@@ -348,6 +358,7 @@ export interface FileRouteTypes {
     | '/app/discover'
     | '/app/provider'
     | '/app'
+    | '/api/public/security-sync'
     | '/app/admin/audit'
     | '/app/admin/chw'
     | '/app/admin/chw-queue'
@@ -381,6 +392,7 @@ export interface FileRouteTypes {
     | '/app/discover'
     | '/app/provider'
     | '/app/'
+    | '/api/public/security-sync'
     | '/app/admin/audit'
     | '/app/admin/chw'
     | '/app/admin/chw-queue'
@@ -408,6 +420,7 @@ export interface RootRouteChildren {
   SecurityRoute: typeof SecurityRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiPublicSecuritySyncRoute: typeof ApiPublicSecuritySyncRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -608,6 +621,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/api/public/security-sync': {
+      id: '/api/public/security-sync'
+      path: '/api/public/security-sync'
+      fullPath: '/api/public/security-sync'
+      preLoaderRoute: typeof ApiPublicSecuritySyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/admin/test/sms': {
       id: '/app/admin/test/sms'
       path: '/test/sms'
@@ -715,6 +735,7 @@ const rootRouteChildren: RootRouteChildren = {
   SecurityRoute: SecurityRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiPublicSecuritySyncRoute: ApiPublicSecuritySyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
