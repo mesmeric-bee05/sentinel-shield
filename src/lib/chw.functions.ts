@@ -352,5 +352,12 @@ export const requeueAssignment = createServerFn({ method: "POST" })
       entity_id: data.id,
       meta: { previous_status: row.status, retry_count: newRetry },
     });
+    await supabaseAdmin.from("chw_requeue_log").insert({
+      assignment_id: data.id,
+      previous_status: row.status,
+      retry_count: newRetry,
+      actor_id: context.userId,
+      scope: "single",
+    });
     return { ok: true, error: null as string | null, retry_count: newRetry };
   });
