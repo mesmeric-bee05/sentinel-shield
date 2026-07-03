@@ -6,8 +6,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { getAppointment, saveScribeNote, logRoomEvent } from "@/server/appointments.functions";
-import { scribeDraft } from "@/server/ai.functions";
+import { getAppointment, saveScribeNote, logRoomEvent } from "@/lib/appointments.functions";
+import { scribeDraft } from "@/lib/ai.functions";
 
 export const Route = createFileRoute("/app/room/$appointmentId")({
   beforeLoad: async () => {

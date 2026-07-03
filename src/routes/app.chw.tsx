@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { AlertTriangle, ClipboardList, Loader2, MapPin } from "lucide-react";
-import { listAssignments, updateAssignmentStatus, type StatusUpdateInputT } from "@/server/chw.functions";
+import { listAssignments, updateAssignmentStatus, type StatusUpdateInputT } from "@/lib/chw.functions";
 import { PageHeader } from "./app";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

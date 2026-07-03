@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, Download, Loader2, RefreshCw, XCircle } fr
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { runSeoAudit, listSeoAuditRuns, type SeoCheck } from "@/server/seo.functions";
+import { runSeoAudit, listSeoAuditRuns, type SeoCheck } from "@/lib/seo.functions";
 import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";

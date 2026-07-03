@@ -252,6 +252,44 @@ export type Database = {
           },
         ]
       }
+      chw_requeue_log: {
+        Row: {
+          actor_id: string
+          assignment_id: string
+          created_at: string
+          id: string
+          previous_status: string
+          retry_count: number
+          scope: string
+        }
+        Insert: {
+          actor_id: string
+          assignment_id: string
+          created_at?: string
+          id?: string
+          previous_status: string
+          retry_count: number
+          scope?: string
+        }
+        Update: {
+          actor_id?: string
+          assignment_id?: string
+          created_at?: string
+          id?: string
+          previous_status?: string
+          retry_count?: number
+          scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chw_requeue_log_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "chw_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chw_workers: {
         Row: {
           base_lat: number | null
@@ -515,6 +553,48 @@ export type Database = {
           requested_role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["role_request_status"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      security_findings: {
+        Row: {
+          first_seen_at: string
+          id: string
+          internal_id: string
+          last_seen_at: string
+          rationale: string | null
+          resource: string | null
+          scanner_name: string
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          first_seen_at?: string
+          id?: string
+          internal_id: string
+          last_seen_at?: string
+          rationale?: string | null
+          resource?: string | null
+          scanner_name: string
+          severity: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          first_seen_at?: string
+          id?: string
+          internal_id?: string
+          last_seen_at?: string
+          rationale?: string | null
+          resource?: string | null
+          scanner_name?: string
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }

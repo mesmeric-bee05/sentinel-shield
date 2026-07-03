@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { checkDnsRecords, getEmailDomainSettings, saveEmailDomainSettings, getDeliverySwitchHistory } from "@/server/email-domain.functions";
+import { checkDnsRecords, getEmailDomainSettings, saveEmailDomainSettings, getDeliverySwitchHistory } from "@/lib/email-domain.functions";
 import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";

@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { getPatientContact, updatePatientContact } from "@/server/profile.functions";
+import { getPatientContact, updatePatientContact } from "@/lib/profile.functions";
 
 export function ContactPreferencesCard() {
   const get = useServerFn(getPatientContact);

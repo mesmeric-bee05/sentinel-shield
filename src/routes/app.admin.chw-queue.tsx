@@ -1,11 +1,11 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, RefreshCw, TimerReset } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { listAdminQueue, requeueAssignment, requeueFailed } from "@/server/chw.functions";
+import { listAdminQueue, requeueAssignment, requeueFailed } from "@/lib/chw.functions";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
@@ -239,8 +239,8 @@ function ChwQueuePage() {
                   const failed = isFailed(r);
                   const open = expanded.has(r.id);
                   return (
-                    <>
-                      <tr key={r.id} className="border-t border-border/60 align-top">
+                    <Fragment key={r.id}>
+                      <tr className="border-t border-border/60 align-top">
                         <td className="py-2 px-2 align-middle">
                           <button onClick={() => toggleRow(r.id)} className="text-muted-foreground hover:text-foreground" aria-label="Toggle details">
                             {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
@@ -269,7 +269,7 @@ function ChwQueuePage() {
                         </td>
                       </tr>
                       {open && (
-                        <tr key={`${r.id}-detail`} className="bg-muted/20 border-t border-border/40">
+                        <tr className="bg-muted/20 border-t border-border/40">
                           <td colSpan={9} className="py-3 px-6 text-xs space-y-1">
                             <div><span className="text-muted-foreground">Assignment ID:</span> <code>{r.id}</code></div>
                             <div><span className="text-muted-foreground">Patient ID:</span> <code>{r.patient_id}</code></div>
@@ -282,7 +282,7 @@ function ChwQueuePage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </tbody>

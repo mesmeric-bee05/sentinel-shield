@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getGscState, requestGscToken, verifyAndSubmitSite, resubmitSitemap, listGscHistory } from "@/server/seo.functions";
+import { getGscState, requestGscToken, verifyAndSubmitSite, resubmitSitemap, listGscHistory } from "@/lib/seo.functions";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
 import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";

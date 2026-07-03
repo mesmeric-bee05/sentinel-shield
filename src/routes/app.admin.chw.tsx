@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Loader2, Plus, UsersRound, ListChecks } from "lucide-react";
-import { listChwWorkers, upsertChwWorker, listAssignments, dispatchAssignment, type ChwWorkerInputT, type DispatchInputT } from "@/server/chw.functions";
+import { listChwWorkers, upsertChwWorker, listAssignments, dispatchAssignment, type ChwWorkerInputT, type DispatchInputT } from "@/lib/chw.functions";
 import { PageHeader } from "./app";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

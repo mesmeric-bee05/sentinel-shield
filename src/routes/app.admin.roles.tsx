@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { listRoleRequests, decideRoleRequest, searchUsers, grantRole, revokeRole } from "@/server/roles.functions";
+import { listRoleRequests, decideRoleRequest, searchUsers, grantRole, revokeRole } from "@/lib/roles.functions";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/roles")({

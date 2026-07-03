@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, CheckCircle2, Clock, Loader2, RotateCcw, ServerCog } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { getEmailHealth } from "@/server/email-health.functions";
+import { getEmailHealth } from "@/lib/email-health.functions";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/email-health")({
