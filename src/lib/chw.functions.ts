@@ -297,12 +297,20 @@ export const requeueFailed = createServerFn({ method: "POST" })
         .eq("id", row.id);
       if (!upErr) {
         requeued++;
+        const scope = data.ids?.length ? "ids" : "all_failed";
         await supabaseAdmin.from("audit_events").insert({
           actor_id: context.userId,
           action: "chw.requeued_bulk",
           entity: "chw_assignments",
           entity_id: row.id,
-          meta: { previous_status: row.status, retry_count: newRetry, scope: data.ids?.length ? "ids" : "all_failed" },
+          meta: { previous_status: row.status, retry_count: newRetry, scope },
+        });
+        await supabaseAdmin.from("chw_requeue_log").insert({
+          assignment_id: row.id,
+          previous_status: row.status,
+          retry_count: newRetry,
+          actor_id: context.userId,
+          scope,
         });
       }
     }
