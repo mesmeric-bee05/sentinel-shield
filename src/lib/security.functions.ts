@@ -64,5 +64,5 @@ export const listSecuritySyncAttempts = createServerFn({ method: "POST" })
         counts24h[r.status] = (counts24h[r.status] ?? 0) + 1;
       }
     }
-    return { error: null as string | null, attempts: (rows ?? []) as unknown[], counts24h };
+    return { error: null as string | null, attempts: (rows ?? []) as Record<string, unknown>[], counts24h };
   });
