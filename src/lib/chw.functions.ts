@@ -361,3 +361,47 @@ export const requeueAssignment = createServerFn({ method: "POST" })
     });
     return { ok: true, error: null as string | null, retry_count: newRetry };
   });
+
+// ---------- Requeue log ----------
+export const listRequeueLog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      scope: z.enum(["single", "ids", "all_failed"]).optional().nullable(),
+      limit: z.number().int().min(1).max(1000).default(500),
+    }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) return { error: "Forbidden" as const, rows: [] };
+
+    let q = supabaseAdmin
+      .from("chw_requeue_log")
+      .select("id, created_at, assignment_id, previous_status, retry_count, actor_id, scope, assignment:chw_assignments(task_type, status)")
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+    if (data.scope) q = q.eq("scope", data.scope);
+    const { data: rows, error } = await q;
+    if (error) return { error: error.message, rows: [] };
+
+    const actorIds = Array.from(new Set((rows ?? []).map((r) => r.actor_id).filter((x): x is string => !!x)));
+    let actorMap: Record<string, string> = {};
+    if (actorIds.length > 0) {
+      const { data: profs } = await supabaseAdmin
+        .from("profiles").select("id, email").in("id", actorIds);
+      actorMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.email ?? ""]));
+    }
+    const enriched = (rows ?? []).map((r) => ({
+      id: r.id,
+      created_at: r.created_at,
+      assignment_id: r.assignment_id,
+      previous_status: r.previous_status,
+      retry_count: r.retry_count,
+      scope: r.scope,
+      actor_id: r.actor_id,
+      actor_email: r.actor_id ? actorMap[r.actor_id] ?? "" : "",
+      task_type: (r as { assignment?: { task_type?: string | null } }).assignment?.task_type ?? "",
+      current_status: (r as { assignment?: { status?: string | null } }).assignment?.status ?? "",
+    }));
+    return { error: null as string | null, rows: enriched };
+  });

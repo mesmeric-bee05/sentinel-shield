@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2,
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { listAdminQueue, requeueAssignment, requeueFailed } from "@/lib/chw.functions";
+import { listAdminQueue, listRequeueLog, requeueAssignment, requeueFailed } from "@/lib/chw.functions";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
@@ -292,6 +292,137 @@ function ChwQueuePage() {
       </div>
       <div className="text-xs text-muted-foreground mt-2">Showing {slice.length} of {total}</div>
       <Pager page={page} pages={pages} onPage={setPage} />
+
+      <RequeueLogPanel />
+    </div>
+  );
+}
+
+type LogRow = {
+  id: string;
+  created_at: string;
+  assignment_id: string;
+  previous_status: string;
+  retry_count: number;
+  scope: string;
+  actor_id: string | null;
+  actor_email: string;
+  task_type: string;
+  current_status: string;
+};
+
+function RequeueLogPanel() {
+  const listLogFn = useServerFn(listRequeueLog);
+  const [rows, setRows] = useState<LogRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [filters, setFilters] = useState<HistoryFilterState>(emptyFilters);
+  const [page, setPage] = useState(1);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await listLogFn({ data: {} });
+      if ("error" in r && r.error) { toast.error(r.error); setRows([]); }
+      else setRows((r.rows ?? []) as LogRow[]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load re-queue log");
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { if (open) load(); /* eslint-disable-next-line */ }, [open]);
+
+  const filtered = useMemo(
+    () => applyHistoryFilter(rows, filters, {
+      date: (r) => r.created_at,
+      status: (r) => r.scope,
+      searchable: (r) => `${r.assignment_id} ${r.previous_status} ${r.task_type} ${r.actor_email} ${r.scope}`,
+    }),
+    [rows, filters],
+  );
+  const { slice, total, pages } = paginate(filtered, page, 25);
+
+  const cols = [
+    { key: "created_at", label: "When", value: (r: LogRow) => r.created_at },
+    { key: "assignment_id", label: "Assignment", value: (r: LogRow) => r.assignment_id },
+    { key: "task_type", label: "Task", value: (r: LogRow) => r.task_type },
+    { key: "previous_status", label: "Previous status", value: (r: LogRow) => r.previous_status },
+    { key: "current_status", label: "Current status", value: (r: LogRow) => r.current_status },
+    { key: "retry_count", label: "Retry #", value: (r: LogRow) => r.retry_count },
+    { key: "scope", label: "Scope", value: (r: LogRow) => r.scope },
+    { key: "actor_id", label: "Actor ID", value: (r: LogRow) => r.actor_id ?? "" },
+    { key: "actor_email", label: "Actor email", value: (r: LogRow) => r.actor_email },
+  ];
+
+  return (
+    <div className="mt-10 rounded-2xl border border-border bg-card shadow-card">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 p-4 text-left hover:bg-muted/30 rounded-t-2xl"
+      >
+        {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        <span className="font-serif text-lg">Re-queue log</span>
+        <span className="text-xs text-muted-foreground ml-2">Audit trail of every single and bulk re-queue action.</span>
+        {open && (
+          <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={(e) => { e.stopPropagation(); load(); }}>
+            <RefreshCw className="w-3 h-3 mr-1" />Refresh
+          </Button>
+        )}
+      </button>
+      {open && (
+        <div className="p-4 border-t border-border/60">
+          <HistoryFilters
+            value={filters}
+            onChange={(v) => { setFilters(v); setPage(1); }}
+            statusOptions={[
+              { value: "single", label: "Single" },
+              { value: "ids", label: "Bulk (ids)" },
+              { value: "all_failed", label: "Bulk (all failed)" },
+            ]}
+            searchPlaceholder="Assignment, task, actor…"
+            onExportCsv={() => downloadCsv(timestampedName("chw-requeue-log"), filtered, cols)}
+            onExportJson={() => downloadJson(timestampedName("chw-requeue-log"), filtered)}
+          />
+
+          {loading ? (
+            <div className="p-8 text-center text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">No re-queue actions logged yet.</div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-border/60">
+              <table className="w-full text-xs">
+                <thead className="text-muted-foreground uppercase tracking-wider bg-muted/30">
+                  <tr>
+                    <th className="text-left py-2 px-3">When</th>
+                    <th className="text-left py-2 px-3">Assignment</th>
+                    <th className="text-left py-2 px-3">Task</th>
+                    <th className="text-left py-2 px-3">Prev → Current</th>
+                    <th className="text-right py-2 px-3">Retry #</th>
+                    <th className="text-left py-2 px-3">Scope</th>
+                    <th className="text-left py-2 px-3">Actor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {slice.map((r) => (
+                    <tr key={r.id} className="border-t border-border/60">
+                      <td className="py-2 px-3 whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</td>
+                      <td className="py-2 px-3 font-mono text-[11px] max-w-[200px] truncate" title={r.assignment_id}>{r.assignment_id}</td>
+                      <td className="py-2 px-3"><code>{r.task_type || "—"}</code></td>
+                      <td className="py-2 px-3">{r.previous_status} → {r.current_status || "—"}</td>
+                      <td className="py-2 px-3 text-right">{r.retry_count}</td>
+                      <td className="py-2 px-3">{r.scope}</td>
+                      <td className="py-2 px-3">{r.actor_email || <span className="font-mono text-[11px] text-muted-foreground">{r.actor_id ?? "—"}</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="text-xs text-muted-foreground mt-2">Showing {slice.length} of {total}</div>
+          <Pager page={page} pages={pages} onPage={setPage} />
+        </div>
+      )}
     </div>
   );
 }

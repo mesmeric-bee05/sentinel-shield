@@ -47,6 +47,7 @@ function AppShell() {
     { to: "/app/admin/test/sms", label: "SMS test", icon: MessageSquare, show: isAdmin },
     { to: "/app/admin/roles", label: "Roles", icon: UserCog, show: isAdmin },
     { to: "/app/admin/security", label: "Security tracker", icon: ShieldCheck, show: isAdmin },
+    { to: "/app/admin/security-sync", label: "Sync audit", icon: ShieldCheck, show: isAdmin },
   ].filter((n) => n.show !== false);
 
   return (
