@@ -598,6 +598,45 @@ export type Database = {
         }
         Relationships: []
       }
+      security_sync_attempts: {
+        Row: {
+          duration_ms: number | null
+          error: string | null
+          finding_count: number | null
+          id: string
+          nonce: string | null
+          payload_bytes: number | null
+          received_at: string
+          signature_valid: boolean
+          source_ip: string | null
+          status: string
+        }
+        Insert: {
+          duration_ms?: number | null
+          error?: string | null
+          finding_count?: number | null
+          id?: string
+          nonce?: string | null
+          payload_bytes?: number | null
+          received_at?: string
+          signature_valid: boolean
+          source_ip?: string | null
+          status: string
+        }
+        Update: {
+          duration_ms?: number | null
+          error?: string | null
+          finding_count?: number | null
+          id?: string
+          nonce?: string | null
+          payload_bytes?: number | null
+          received_at?: string
+          signature_valid?: boolean
+          source_ip?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       seo_audit_runs: {
         Row: {
           actor_id: string | null
