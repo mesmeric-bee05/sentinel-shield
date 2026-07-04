@@ -80,4 +80,3 @@ export const listSecuritySyncAttempts = createServerFn({ method: "POST" })
     }
     return { error: null as string | null, attempts, counts24h };
   });
-  });
