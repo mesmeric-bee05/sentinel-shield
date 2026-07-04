@@ -34,3 +34,35 @@ export const listSecurityFindings = createServerFn({ method: "POST" })
 
     return { error: null as string | null, findings: rows ?? [], counts };
   });
+
+export const listSecuritySyncAttempts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      status: z.enum(["accepted", "invalid_signature", "invalid_payload", "replay", "disabled", "write_failed"]).optional().nullable(),
+      limit: z.number().int().min(1).max(1000).default(500),
+    }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) return { error: "Forbidden" as const, attempts: [], counts24h: {} };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
+      .from("security_sync_attempts" as never)
+      .select("*")
+      .order("received_at", { ascending: false })
+      .limit(data.limit);
+    if (data.status) q = q.eq("status", data.status);
+    const { data: rows, error } = await q;
+    if (error) return { error: error.message, attempts: [], counts24h: {} };
+
+    const cutoff = Date.now() - 24 * 3600 * 1000;
+    const counts24h: Record<string, number> = {};
+    for (const r of (rows ?? []) as { status: string; received_at: string }[]) {
+      if (new Date(r.received_at).getTime() >= cutoff) {
+        counts24h[r.status] = (counts24h[r.status] ?? 0) + 1;
+      }
+    }
+    return { error: null as string | null, attempts: (rows ?? []) as unknown[], counts24h };
+  });
