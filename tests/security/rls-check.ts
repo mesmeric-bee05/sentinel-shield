@@ -66,10 +66,10 @@ await run("anon cannot read profiles", async () => {
 });
 
 // ----- 3. Documented accepted risk: care_facilities public phone -----
-await run("care_facilities.phone_e164 is public (accepted risk)", async () => {
-  const { error } = await anon.from("care_facilities").select("id, phone_e164").limit(1);
-  if (error) bad("care_facilities.phone_e164 is public (accepted risk)", error.message);
-  else ok("care_facilities.phone_e164 is public (accepted risk)");
+await run("care_facilities.phone is public (accepted risk)", async () => {
+  const { error } = await anon.from("care_facilities").select("id, phone").limit(1);
+  if (error) bad("care_facilities.phone is public (accepted risk)", error.message);
+  else ok("care_facilities.phone is public (accepted risk)");
 });
 
 // ----- 4. security_findings restricted to admins -----
