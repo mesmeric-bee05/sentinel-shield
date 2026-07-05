@@ -11,7 +11,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test:security": "bun run tests/security/rls-check.ts",
-    "test:rls-regression": "bun run tests/security/rls-regression.test.ts"
+    "test:rls-regression": "bun run tests/security/rls-regression.test.ts",
+    "test:security-sync": "bun run tests/security/security-sync.test.ts",
+    "test:all": "bun run test:security && bun run test:rls-regression && bun run test:security-sync"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
