@@ -314,34 +314,43 @@ type LogRow = {
 function RequeueLogPanel() {
   const listLogFn = useServerFn(listRequeueLog);
   const [rows, setRows] = useState<LogRow[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [open, setOpen] = useState(false);
   const [filters, setFilters] = useState<HistoryFilterState>(emptyFilters);
   const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const r = await listLogFn({ data: {} });
-      if ("error" in r && r.error) { toast.error(r.error); setRows([]); }
-      else setRows((r.rows ?? []) as LogRow[]);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load re-queue log");
-    }
-    setLoading(false);
-  };
+  // Debounced query — refetches when filters/page change while open.
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      (async () => {
+        setLoading(true);
+        try {
+          const r = await listLogFn({ data: {
+            q: filters.q || null,
+            scope: (filters.status as "single" | "ids" | "all_failed" | "") || null,
+            from: filters.from ? new Date(filters.from).toISOString() : null,
+            to: filters.to ? new Date(new Date(filters.to).getTime() + 86_399_000).toISOString() : null,
+            page,
+            pageSize: PAGE_SIZE,
+            format: "page",
+          } });
+          if ("error" in r && r.error) { toast.error(r.error); setRows([]); setTotal(0); }
+          else { setRows((r.rows ?? []) as LogRow[]); setTotal(r.total ?? 0); }
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Failed to load re-queue log");
+        }
+        setLoading(false);
+      })();
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, filters, page]);
 
-  useEffect(() => { if (open) load(); /* eslint-disable-next-line */ }, [open]);
-
-  const filtered = useMemo(
-    () => applyHistoryFilter(rows, filters, {
-      date: (r) => r.created_at,
-      status: (r) => r.scope,
-      searchable: (r) => `${r.assignment_id} ${r.previous_status} ${r.task_type} ${r.actor_email} ${r.scope}`,
-    }),
-    [rows, filters],
-  );
-  const { slice, total, pages } = paginate(filtered, page, 25);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const cols = [
     { key: "created_at", label: "When", value: (r: LogRow) => r.created_at },
@@ -355,6 +364,28 @@ function RequeueLogPanel() {
     { key: "actor_email", label: "Actor email", value: (r: LogRow) => r.actor_email },
   ];
 
+  const runExport = async (kind: "csv" | "json") => {
+    setExporting(true);
+    try {
+      const r = await listLogFn({ data: {
+        q: filters.q || null,
+        scope: (filters.status as "single" | "ids" | "all_failed" | "") || null,
+        from: filters.from ? new Date(filters.from).toISOString() : null,
+        to: filters.to ? new Date(new Date(filters.to).getTime() + 86_399_000).toISOString() : null,
+        page: 1,
+        pageSize: 200,
+        format: "export",
+      } });
+      if ("error" in r && r.error) { toast.error(r.error); return; }
+      const all = (r.rows ?? []) as LogRow[];
+      if (kind === "csv") downloadCsv(timestampedName("chw-requeue-log"), all, cols);
+      else downloadJson(timestampedName("chw-requeue-log"), all);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed");
+    }
+    setExporting(false);
+  };
+
   return (
     <div className="mt-10 rounded-2xl border border-border bg-card shadow-card">
       <button
@@ -365,7 +396,7 @@ function RequeueLogPanel() {
         <span className="font-serif text-lg">Re-queue log</span>
         <span className="text-xs text-muted-foreground ml-2">Audit trail of every single and bulk re-queue action.</span>
         {open && (
-          <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={(e) => { e.stopPropagation(); load(); }}>
+          <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={(e) => { e.stopPropagation(); setPage(1); setFilters({ ...filters }); }}>
             <RefreshCw className="w-3 h-3 mr-1" />Refresh
           </Button>
         )}
@@ -381,14 +412,14 @@ function RequeueLogPanel() {
               { value: "all_failed", label: "Bulk (all failed)" },
             ]}
             searchPlaceholder="Assignment, task, actor…"
-            onExportCsv={() => downloadCsv(timestampedName("chw-requeue-log"), filtered, cols)}
-            onExportJson={() => downloadJson(timestampedName("chw-requeue-log"), filtered)}
+            onExportCsv={() => runExport("csv")}
+            onExportJson={() => runExport("json")}
           />
 
           {loading ? (
             <div className="p-8 text-center text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin inline mr-2" />Loading…</div>
-          ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">No re-queue actions logged yet.</div>
+          ) : rows.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">No re-queue actions match the current filters.</div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-border/60">
               <table className="w-full text-xs">
@@ -404,7 +435,7 @@ function RequeueLogPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {slice.map((r) => (
+                  {rows.map((r) => (
                     <tr key={r.id} className="border-t border-border/60">
                       <td className="py-2 px-3 whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</td>
                       <td className="py-2 px-3 font-mono text-[11px] max-w-[200px] truncate" title={r.assignment_id}>{r.assignment_id}</td>
@@ -419,7 +450,10 @@ function RequeueLogPanel() {
               </table>
             </div>
           )}
-          <div className="text-xs text-muted-foreground mt-2">Showing {slice.length} of {total}</div>
+          <div className="text-xs text-muted-foreground mt-2 flex items-center gap-2">
+            <span>Showing {rows.length} of {total}</span>
+            {exporting && <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Preparing export…</span>}
+          </div>
           <Pager page={page} pages={pages} onPage={setPage} />
         </div>
       )}

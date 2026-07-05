@@ -6,7 +6,7 @@
 //   1. Every mutating server fn rejects unauthenticated calls (401 or Forbidden).
 //   2. Admin-only fns reject non-admin users.
 //   3. chw_assignments is NOT in the supabase_realtime publication.
-//   4. Public tables (care_facilities.phone_e164) remain readable — documented
+//   4. Public tables (care_facilities.phone) remain readable — documented
 //      accepted risk from docs/security/accepted-risks.md §1.
 import { createClient } from "@supabase/supabase-js";
 
@@ -66,10 +66,10 @@ await run("anon cannot read profiles", async () => {
 });
 
 // ----- 3. Documented accepted risk: care_facilities public phone -----
-await run("care_facilities.phone_e164 is public (accepted risk)", async () => {
-  const { error } = await anon.from("care_facilities").select("id, phone_e164").limit(1);
-  if (error) bad("care_facilities.phone_e164 is public (accepted risk)", error.message);
-  else ok("care_facilities.phone_e164 is public (accepted risk)");
+await run("care_facilities.phone is public (accepted risk)", async () => {
+  const { error } = await anon.from("care_facilities").select("id, phone").limit(1);
+  if (error) bad("care_facilities.phone is public (accepted risk)", error.message);
+  else ok("care_facilities.phone is public (accepted risk)");
 });
 
 // ----- 4. security_findings restricted to admins -----
