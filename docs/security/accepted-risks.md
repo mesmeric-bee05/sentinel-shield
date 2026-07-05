@@ -84,3 +84,23 @@ the body and must remain callable from the authenticated client role:
 - An existing function's gate is removed, weakened, or made conditional on
   client-supplied input.
 - The Supabase linter starts flagging a function not listed above.
+
+## Security webhook test coverage
+
+The `/api/public/security-sync` endpoint is covered by
+`tests/security/security-sync.test.ts` (run with `bun run test:security-sync`,
+or `bun run test:all` alongside the RLS suites). It exercises the handler
+directly with fabricated `Request` objects and asserts both the HTTP
+response and the resulting `security_sync_attempts` row for:
+
+- Valid signature + fresh nonce → `200`, `status = accepted`, `signature_valid = true`.
+- Duplicate nonce replay → `409`, `status = replay`, `signature_valid = true`, `nonce = null` (audit-only row).
+- Stale `issued_at` (outside ±5 min window) → `400`, `status = invalid_payload`.
+- Wrong HMAC secret → `401`, `status = invalid_signature`, `signature_valid = false`, `nonce = null`.
+- Missing `x-signature` header → `401`.
+- Malformed JSON body → `400`, `status = invalid_payload`, `signature_valid = true`.
+
+Tests clean up all attempts written during their window and any findings
+they inserted (matched by test-only `scanner_name`). They skip cleanly when
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, or `SECURITY_SYNC_SECRET` are
+missing, so they are safe to run in CI or locally.
