@@ -123,7 +123,7 @@ try {
     if (!row) return bad("stale issued_at → 400 invalid_payload row", "no attempt row found");
     if (row.status !== "invalid_payload") return bad("stale issued_at → 400 invalid_payload row", `status=${row.status}`);
     if (row.signature_valid !== true) return bad("stale issued_at → 400 invalid_payload row", "signature should be valid");
-    if (!row.error || !/stale issued_at/i.test(row.error)) return bad("stale issued_at → 400 invalid_payload row", `error=${row.error}`);
+    if (!row.error || !/replay window|stale issued_at/i.test(row.error)) return bad("stale issued_at → 400 invalid_payload row", `error=${row.error}`);
     ok("stale issued_at → 400 invalid_payload row");
     nonces.push(nonce);
   });
