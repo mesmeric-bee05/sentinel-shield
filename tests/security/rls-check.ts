@@ -6,7 +6,7 @@
 //   1. Every mutating server fn rejects unauthenticated calls (401 or Forbidden).
 //   2. Admin-only fns reject non-admin users.
 //   3. chw_assignments is NOT in the supabase_realtime publication.
-//   4. Public tables (care_facilities.phone_e164) remain readable — documented
+//   4. Public tables (care_facilities.phone) remain readable — documented
 //      accepted risk from docs/security/accepted-risks.md §1.
 import { createClient } from "@supabase/supabase-js";
 
