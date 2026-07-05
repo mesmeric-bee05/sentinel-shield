@@ -363,35 +363,66 @@ export const requeueAssignment = createServerFn({ method: "POST" })
   });
 
 // ---------- Requeue log ----------
+// Admin-only. Server-side filters + pagination to keep exports responsive
+// as the table grows. Uses `count: 'exact'` and `.range()` to avoid
+// PostgREST timeouts on wide joins.
 export const listRequeueLog = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z.object({
       scope: z.enum(["single", "ids", "all_failed"]).optional().nullable(),
-      limit: z.number().int().min(1).max(1000).default(500),
+      q: z.string().max(200).optional().nullable(),
+      from: z.string().datetime().optional().nullable(),
+      to: z.string().datetime().optional().nullable(),
+      page: z.number().int().min(1).default(1),
+      pageSize: z.number().int().min(1).max(200).default(50),
+      format: z.enum(["page", "export"]).default("page"),
     }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
-    if (!isAdmin) return { error: "Forbidden" as const, rows: [] };
+    if (!isAdmin) return { error: "Forbidden" as const, rows: [], total: 0, page: data.page, pageSize: data.pageSize };
+
+    // Export mode ignores paging and caps at 5000 rows to keep response bounded.
+    const EXPORT_CAP = 5000;
+    const useExport = data.format === "export";
+    const pageSize = useExport ? EXPORT_CAP : data.pageSize;
+    const from = useExport ? 0 : (data.page - 1) * data.pageSize;
+    const to = useExport ? EXPORT_CAP - 1 : from + data.pageSize - 1;
 
     let q = supabaseAdmin
       .from("chw_requeue_log")
-      .select("id, created_at, assignment_id, previous_status, retry_count, actor_id, scope, assignment:chw_assignments(task_type, status)")
+      .select("id, created_at, assignment_id, previous_status, retry_count, actor_id, scope", { count: "exact" })
       .order("created_at", { ascending: false })
-      .limit(data.limit);
+      .range(from, to);
     if (data.scope) q = q.eq("scope", data.scope);
-    const { data: rows, error } = await q;
-    if (error) return { error: error.message, rows: [] };
+    if (data.from) q = q.gte("created_at", data.from);
+    if (data.to) q = q.lte("created_at", data.to);
+    if (data.q && data.q.trim()) {
+      const term = data.q.trim().replace(/[%,]/g, "");
+      // OR across assignment_id (uuid text match), previous_status, scope.
+      q = q.or(`assignment_id.ilike.%${term}%,previous_status.ilike.%${term}%,scope.ilike.%${term}%`);
+    }
+    const { data: rows, error, count } = await q;
+    if (error) return { error: error.message, rows: [], total: 0, page: data.page, pageSize };
 
+    // Hydrate assignment + actor lookups per page (bounded fanout).
+    const assignmentIds = Array.from(new Set((rows ?? []).map((r) => r.assignment_id).filter((x): x is string => !!x)));
     const actorIds = Array.from(new Set((rows ?? []).map((r) => r.actor_id).filter((x): x is string => !!x)));
+    let assignmentMap: Record<string, { task_type: string | null; status: string | null }> = {};
     let actorMap: Record<string, string> = {};
+    if (assignmentIds.length > 0) {
+      const { data: as } = await supabaseAdmin
+        .from("chw_assignments").select("id, task_type, status").in("id", assignmentIds);
+      assignmentMap = Object.fromEntries((as ?? []).map((a) => [a.id, { task_type: a.task_type, status: a.status }]));
+    }
     if (actorIds.length > 0) {
       const { data: profs } = await supabaseAdmin
         .from("profiles").select("id, email").in("id", actorIds);
       actorMap = Object.fromEntries((profs ?? []).map((p) => [p.id, p.email ?? ""]));
     }
-    const enriched = (rows ?? []).map((r) => ({
+
+    let enriched = (rows ?? []).map((r) => ({
       id: r.id,
       created_at: r.created_at,
       assignment_id: r.assignment_id,
@@ -400,8 +431,21 @@ export const listRequeueLog = createServerFn({ method: "POST" })
       scope: r.scope,
       actor_id: r.actor_id,
       actor_email: r.actor_id ? actorMap[r.actor_id] ?? "" : "",
-      task_type: (r as { assignment?: { task_type?: string | null } }).assignment?.task_type ?? "",
-      current_status: (r as { assignment?: { status?: string | null } }).assignment?.status ?? "",
+      task_type: assignmentMap[r.assignment_id]?.task_type ?? "",
+      current_status: assignmentMap[r.assignment_id]?.status ?? "",
     }));
-    return { error: null as string | null, rows: enriched };
+
+    // Free-text `q` also matches actor_email + task_type (hydrated after DB scan).
+    if (data.q && data.q.trim()) {
+      const t = data.q.trim().toLowerCase();
+      enriched = enriched.filter((r) =>
+        r.assignment_id.toLowerCase().includes(t) ||
+        r.previous_status.toLowerCase().includes(t) ||
+        r.scope.toLowerCase().includes(t) ||
+        r.actor_email.toLowerCase().includes(t) ||
+        r.task_type.toLowerCase().includes(t),
+      );
+    }
+
+    return { error: null as string | null, rows: enriched, total: count ?? enriched.length, page: data.page, pageSize };
   });
