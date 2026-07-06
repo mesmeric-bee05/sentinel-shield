@@ -556,6 +556,42 @@ export type Database = {
         }
         Relationships: []
       }
+      security_finding_audit: {
+        Row: {
+          affected_endpoints: string[]
+          affected_queries: string[]
+          created_at: string
+          id: string
+          internal_id: string
+          notes: string | null
+          resolution: string
+          resolved_by: string | null
+          scanner_name: string
+        }
+        Insert: {
+          affected_endpoints?: string[]
+          affected_queries?: string[]
+          created_at?: string
+          id?: string
+          internal_id: string
+          notes?: string | null
+          resolution: string
+          resolved_by?: string | null
+          scanner_name: string
+        }
+        Update: {
+          affected_endpoints?: string[]
+          affected_queries?: string[]
+          created_at?: string
+          id?: string
+          internal_id?: string
+          notes?: string | null
+          resolution?: string
+          resolved_by?: string | null
+          scanner_name?: string
+        }
+        Relationships: []
+      }
       security_findings: {
         Row: {
           first_seen_at: string
@@ -861,6 +897,17 @@ export type Database = {
           _entity: string
           _entity_id: string
           _meta: Json
+        }
+        Returns: string
+      }
+      log_security_fix: {
+        Args: {
+          _affected_endpoints: string[]
+          _affected_queries: string[]
+          _internal_id: string
+          _notes: string
+          _resolution: string
+          _scanner_name: string
         }
         Returns: string
       }
