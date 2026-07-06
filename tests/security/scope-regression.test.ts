@@ -2,12 +2,14 @@
 // (2) provider_availability public reads are filtered to active providers,
 // (3) travel_time_cache is admin-only for authenticated reads.
 //
-// Runs against the live Supabase project via service role for provisioning
-// and cleans up all rows/users in a finally block.
+// The getSeoSettings check exercises the same has_role('admin') gate the
+// server-fn uses. We can't invoke the TanStack RPC surface from bun, so we
+// verify the middleware+guard contract directly: anon has no session,
+// non-admins fail has_role, admins pass. If any of those change, the
+// server-fn's Forbidden branch changes too.
 //
 // Run with: bun run test:scope-regression
 import { createClient } from "@supabase/supabase-js";
-import { getSeoSettings } from "@/lib/seo.functions";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -55,86 +57,38 @@ async function signIn(email: string, password: string) {
   return { client: c, token: data.session.access_token };
 }
 
-// Invoke the getSeoSettings server-fn handler directly with a synthetic
-// bearer token. Bypasses TanStack RPC entirely — we're testing the middleware.
-async function invokeGetSeoSettings(token: string | null): Promise<Response> {
-  const headers: HeadersInit = { "content-type": "application/json" };
-  if (token) headers["authorization"] = `Bearer ${token}`;
-  const req = new Request("http://localhost/_serverFn/getSeoSettings", { method: "GET", headers });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fn = getSeoSettings as any;
-  // Server fns expose an internal executor at `.__executeServer` in v1;
-  // fall back to invoking through the middleware chain by calling the fn.
-  if (typeof fn.__executeServer === "function") {
-    try { return await fn.__executeServer({ request: req, data: undefined }); }
-    catch (e) { if (e instanceof Response) return e; throw e; }
-  }
-  try {
-    // Direct call path — the middleware reads getRequest() which won't be
-    // populated here; treat any Response throw as the response.
-    const res = await fn({ headers: req.headers });
-    return new Response(JSON.stringify(res), { status: 200 });
-  } catch (e) {
-    if (e instanceof Response) return e;
-    throw e;
-  }
-}
-
-// Prefer testing via the middleware surface: import requireSupabaseAuth and
-// build a minimal handler to verify unauth/non-admin/admin branches. This
-// keeps the test independent of TanStack RPC internals.
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-async function runProtected(token: string | null): Promise<{ status: number; body: unknown }> {
-  const headers = new Headers({ "content-type": "application/json" });
-  if (token) headers.set("authorization", `Bearer ${token}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mw = (requireSupabaseAuth as any);
-  try {
-    const result = await mw.options.server({
-      next: async (opts?: { context?: { userId: string; supabase: unknown } }) => {
-        const ctx = opts?.context;
-        if (!ctx) return { status: 500, body: { error: "no ctx" } };
-        // Simulate getSeoSettings' admin gate.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: isAdmin } = await (ctx.supabase as any).rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
-        if (!isAdmin) return { status: 200, body: { settings: null, error: "Forbidden" } };
-        return { status: 200, body: { settings: {}, error: null } };
-      },
-      // requireSupabaseAuth reads getRequest(). We monkey-patch via a Proxy
-      // by throwing a synthetic Request into globalThis for the duration.
-      request: new Request("http://localhost/", { method: "GET", headers }),
-    });
-    return result as { status: number; body: unknown };
-  } catch (e) {
-    if (e instanceof Response) return { status: e.status, body: await e.text() };
-    throw e;
-  }
-}
-// Suppress unused-variable warnings for the exploratory helper.
-void invokeGetSeoSettings;
-void runProtected;
-
 try {
-  // ---------- getSeoSettings via HTTP-shaped server-fn invocation ----------
   const patient = await provision("patient");
   const adminUser = await provision("admin");
   const patientSess = await signIn(patient.email, patient.password);
   const adminSess = await signIn(adminUser.email, adminUser.password);
 
-  await run("getSeoSettings via signed-in non-admin token returns Forbidden shape from RPC", async () => {
-    // We can't easily invoke the TanStack server-fn machinery from bun, so we
-    // verify the equivalent gate: has_role('admin') is false for the patient,
-    // therefore the same code path in getSeoSettings would return Forbidden.
+  // ---------- getSeoSettings gate parity ----------
+  // The server-fn returns { settings:null, error:'Forbidden' } whenever
+  // has_role(auth.uid(),'admin') is false — this is the exact gate we assert.
+  await run("getSeoSettings gate: non-admin user has no admin role → Forbidden branch", async () => {
     const { data: isAdmin } = await patientSess.client.rpc("has_role", { _user_id: patient.userId, _role: "admin" });
-    if (isAdmin) return bad("getSeoSettings via signed-in non-admin token returns Forbidden shape from RPC", "patient unexpectedly has admin role");
-    ok("getSeoSettings via signed-in non-admin token returns Forbidden shape from RPC");
+    if (isAdmin) return bad("getSeoSettings gate: non-admin user has no admin role → Forbidden branch", "patient unexpectedly has admin role");
+    ok("getSeoSettings gate: non-admin user has no admin role → Forbidden branch");
   });
 
-  await run("getSeoSettings via admin token returns settings row", async () => {
+  await run("getSeoSettings gate: admin user passes has_role → settings branch", async () => {
     const { data: isAdmin } = await adminSess.client.rpc("has_role", { _user_id: adminUser.userId, _role: "admin" });
-    if (!isAdmin) return bad("getSeoSettings via admin token returns settings row", "admin role not present");
-    ok("getSeoSettings via admin token returns settings row");
+    if (!isAdmin) return bad("getSeoSettings gate: admin user passes has_role → settings branch", "admin role not present");
+    ok("getSeoSettings gate: admin user passes has_role → settings branch");
   });
+
+  await run("getSeoSettings: anon direct read of seo_settings is blocked (no policy)", async () => {
+    // The server-fn uses supabaseAdmin (bypasses RLS) but is gated by auth+role.
+    // The underlying table must NOT be publicly readable via anon.
+    const { data } = await anon.from("seo_settings").select("gsc_meta_token");
+    if (data && data.length > 0 && data.some((r) => (r as { gsc_meta_token?: string | null }).gsc_meta_token)) {
+      return bad("getSeoSettings: anon direct read of seo_settings is blocked (no policy)", "anon saw gsc_meta_token");
+    }
+    ok("getSeoSettings: anon direct read of seo_settings is blocked (no policy)");
+  });
+
+
 
   // ---------- provider_availability: only active providers are public ----------
   const { data: activeProv, error: apErr } = await admin.from("providers").insert({
