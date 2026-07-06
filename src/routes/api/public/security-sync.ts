@@ -14,6 +14,9 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { z } from "zod";
 
 const REPLAY_WINDOW_MS = 5 * 60 * 1000;
+const MAX_BYTES = Number(process.env.SECURITY_SYNC_MAX_BYTES ?? 16_384);         // 16 KB default
+const RATE_WINDOW_MS = 60_000;                                                    // 60 s window
+const RATE_MAX = Number(process.env.SECURITY_SYNC_RATE_MAX ?? 30);                // 30 req / IP / window
 
 const FindingSchema = z.object({
   scanner_name: z.string().min(1).max(100),
@@ -36,7 +39,9 @@ type AttemptStatus =
   | "invalid_payload"
   | "replay"
   | "disabled"
-  | "write_failed";
+  | "write_failed"
+  | "payload_too_large"
+  | "rate_limited";
 
 function verifySignature(secret: string, rawBody: string, signatureHeader: string | null): boolean {
   if (!signatureHeader) return false;
@@ -48,9 +53,11 @@ function verifySignature(secret: string, rawBody: string, signatureHeader: strin
 }
 
 function clientIp(request: Request): string | null {
+  const cf = request.headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
   const xff = request.headers.get("x-forwarded-for");
   if (xff) return xff.split(",")[0]?.trim() ?? null;
-  return request.headers.get("cf-connecting-ip") ?? request.headers.get("x-real-ip") ?? null;
+  return request.headers.get("x-real-ip") ?? null;
 }
 
 export const Route = createFileRoute("/api/public/security-sync")({
