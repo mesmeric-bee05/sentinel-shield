@@ -182,6 +182,90 @@ try {
     if (row.signature_valid !== true) return bad("malformed JSON → 400 invalid_payload (signature_valid=true)", "signature_valid should be true");
     ok("malformed JSON → 400 invalid_payload (signature_valid=true)");
   });
+
+  // ---------- Body-size cap ----------
+  await run("oversized body → 413 payload_too_large, attempt row logged", async () => {
+    // Build a body deliberately over 16 KB — a single giant string field.
+    const nonce = `t-big-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const bigTitle = "x".repeat(20_000);
+    const body = JSON.stringify({
+      nonce,
+      issued_at: new Date().toISOString(),
+      findings: [{ scanner_name: SCANNER, internal_id: `${nonce}-big`, title: bigTitle, severity: "info", status: "open" }],
+    });
+    // Content-length header will trigger the fast-path 413 before we even
+    // parse the body — matches the route's declared-length check.
+    const req = new Request("http://localhost/api/public/security-sync", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-signature": sign(body),
+        "x-forwarded-for": "127.0.0.2",
+        "content-length": String(body.length),
+      },
+      body,
+    });
+    const res = await handler({ request: req });
+    if (res.status !== 413) return bad("oversized body → 413 payload_too_large, attempt row logged", `status=${res.status}`);
+    const { data } = await admin
+      .from("security_sync_attempts" as never)
+      .select("status, signature_valid, source_ip")
+      .eq("status", "payload_too_large")
+      .gte("received_at", testStart)
+      .order("received_at", { ascending: false })
+      .limit(1);
+    const row = ((data ?? []) as { status: string; signature_valid: boolean }[])[0];
+    if (!row) return bad("oversized body → 413 payload_too_large, attempt row logged", "no payload_too_large row");
+    ok("oversized body → 413 payload_too_large, attempt row logged");
+  });
+
+  // ---------- Per-IP rate limit ----------
+  await run("31st request in <60s from same IP → 429 rate_limited", async () => {
+    const ip = `10.99.${Math.floor(Math.random() * 200) + 1}.${Math.floor(Math.random() * 200) + 1}`;
+    // Pre-seed 30 attempt rows for this IP to trip the 30-req/min ceiling
+    // without actually hammering the handler 30 times.
+    const seed: Array<{ source_ip: string; nonce: string | null; signature_valid: boolean; status: string; duration_ms: number }> = [];
+    for (let i = 0; i < 30; i++) {
+      seed.push({ source_ip: ip, nonce: null, signature_valid: false, status: "invalid_signature", duration_ms: 1 });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: seedErr } = await admin.from("security_sync_attempts" as never).insert(seed as any);
+    if (seedErr) return bad("31st request in <60s from same IP → 429 rate_limited", `seed: ${seedErr.message}`);
+    const nonce = `t-rate-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const body = makeBody(nonce);
+    const req = new Request("http://localhost/api/public/security-sync", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-signature": sign(body), "x-forwarded-for": ip },
+      body,
+    });
+    const res = await handler({ request: req });
+    if (res.status !== 429) return bad("31st request in <60s from same IP → 429 rate_limited", `status=${res.status}`);
+    if (res.headers.get("retry-after") !== "60") return bad("31st request in <60s from same IP → 429 rate_limited", "missing retry-after");
+    const { data } = await admin
+      .from("security_sync_attempts" as never)
+      .select("status")
+      .eq("source_ip", ip)
+      .eq("status", "rate_limited")
+      .gte("received_at", testStart)
+      .limit(1);
+    if (!data || data.length === 0) return bad("31st request in <60s from same IP → 429 rate_limited", "no rate_limited attempt row");
+    ok("31st request in <60s from same IP → 429 rate_limited");
+  });
+
+  // ---------- Rate limit is per-IP, not global ----------
+  await run("different IP is not rate-limited by neighbour's traffic", async () => {
+    const nonce = `t-diffip-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    nonces.push(nonce);
+    const body = makeBody(nonce);
+    const req = new Request("http://localhost/api/public/security-sync", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-signature": sign(body), "x-forwarded-for": `10.100.${Math.floor(Math.random() * 250)}.1` },
+      body,
+    });
+    const res = await handler({ request: req });
+    if (res.status !== 200) return bad("different IP is not rate-limited by neighbour's traffic", `status=${res.status}`);
+    ok("different IP is not rate-limited by neighbour's traffic");
+  });
 } finally {
   // Clean up: attempts written during the test window + findings from this scanner.
   try {
