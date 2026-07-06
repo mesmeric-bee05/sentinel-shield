@@ -96,8 +96,6 @@ try {
     display_name: `Scope Active ${Date.now()}`,
     specialty: "general",
     is_active: true,
-    modes: ["telehealth"],
-    lat: 0, lng: 0,
   }).select("id").single();
   if (apErr || !activeProv) throw new Error(`seed active provider: ${apErr?.message}`);
   providerIds.push(activeProv.id);
@@ -107,8 +105,6 @@ try {
     display_name: `Scope Inactive ${Date.now()}`,
     specialty: "general",
     is_active: false,
-    modes: ["telehealth"],
-    lat: 0, lng: 0,
   }).select("id").single();
   if (ipErr || !inactiveProv) throw new Error(`seed inactive provider: ${ipErr?.message}`);
   providerIds.push(inactiveProv.id);
