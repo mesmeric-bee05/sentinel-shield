@@ -14,6 +14,9 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { z } from "zod";
 
 const REPLAY_WINDOW_MS = 5 * 60 * 1000;
+const MAX_BYTES = Number(process.env.SECURITY_SYNC_MAX_BYTES ?? 16_384);         // 16 KB default
+const RATE_WINDOW_MS = 60_000;                                                    // 60 s window
+const RATE_MAX = Number(process.env.SECURITY_SYNC_RATE_MAX ?? 30);                // 30 req / IP / window
 
 const FindingSchema = z.object({
   scanner_name: z.string().min(1).max(100),
@@ -36,7 +39,9 @@ type AttemptStatus =
   | "invalid_payload"
   | "replay"
   | "disabled"
-  | "write_failed";
+  | "write_failed"
+  | "payload_too_large"
+  | "rate_limited";
 
 function verifySignature(secret: string, rawBody: string, signatureHeader: string | null): boolean {
   if (!signatureHeader) return false;
@@ -48,9 +53,11 @@ function verifySignature(secret: string, rawBody: string, signatureHeader: strin
 }
 
 function clientIp(request: Request): string | null {
+  const cf = request.headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
   const xff = request.headers.get("x-forwarded-for");
   if (xff) return xff.split(",")[0]?.trim() ?? null;
-  return request.headers.get("cf-connecting-ip") ?? request.headers.get("x-real-ip") ?? null;
+  return request.headers.get("x-real-ip") ?? null;
 }
 
 export const Route = createFileRoute("/api/public/security-sync")({
@@ -91,8 +98,36 @@ export const Route = createFileRoute("/api/public/security-sync")({
           return new Response("sync_disabled", { status: 503 });
         }
 
+        // ---- Body size cap (declared) --------------------------------
+        const declaredLen = Number(request.headers.get("content-length") ?? "0");
+        if (declaredLen > MAX_BYTES) {
+          await logAttempt({ status: "payload_too_large", signature_valid: false, nonce: null, payload_bytes: declaredLen, finding_count: null, error: `content-length ${declaredLen} > ${MAX_BYTES}` });
+          return new Response("payload_too_large", { status: 413 });
+        }
+
+        // ---- Per-IP rate limit ---------------------------------------
+        // Rows in security_sync_attempts for this IP within RATE_WINDOW_MS.
+        // Runs before signature verification so a token flood can't stall the endpoint.
+        if (ip) {
+          const since = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
+          const { count } = await supabaseAdmin
+            .from("security_sync_attempts" as never)
+            .select("id", { count: "exact", head: true })
+            .eq("source_ip", ip)
+            .gte("received_at", since);
+          if ((count ?? 0) >= RATE_MAX) {
+            await logAttempt({ status: "rate_limited", signature_valid: false, nonce: null, payload_bytes: declaredLen || null, finding_count: null, error: `> ${RATE_MAX} req / ${RATE_WINDOW_MS}ms from ${ip}` });
+            return new Response("rate_limited", { status: 429, headers: { "retry-after": "60" } });
+          }
+        }
+
         const raw = await request.text();
         const payloadBytes = raw.length;
+        // Actual-body cap (safety net if content-length was missing / lied)
+        if (payloadBytes > MAX_BYTES) {
+          await logAttempt({ status: "payload_too_large", signature_valid: false, nonce: null, payload_bytes: payloadBytes, finding_count: null, error: `body ${payloadBytes} > ${MAX_BYTES}` });
+          return new Response("payload_too_large", { status: 413 });
+        }
         const signatureValid = verifySignature(secret, raw, request.headers.get("x-signature"));
         if (!signatureValid) {
           await logAttempt({ status: "invalid_signature", signature_valid: false, nonce: null, payload_bytes: payloadBytes, finding_count: null, error: "signature mismatch" });

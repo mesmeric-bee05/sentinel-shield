@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SECURITY_SYNC_SECRET: ${{ secrets.SECURITY_SYNC_SECRET }}
+      # Non-secret fallbacks so tests still print a skip line if a secret is missing.
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install deps
+        run: bun install --frozen-lockfile
+
+      - name: Build (production)
+        run: bun run build
+
+      # Each test suite echoes its own pass/fail summary line at the end.
+      # We want every failure surfaced verbatim in the job log, so run them
+      # sequentially and let a non-zero exit fail the workflow.
+      - name: RLS check (schema-level policies)
+        run: bun run test:security
+
+      - name: RLS regression suite (anon/user/admin/service_role)
+        run: bun run test:rls-regression
+
+      - name: Security-sync webhook suite
+        run: bun run test:security-sync
+
+      - name: Scope regression suite (getSeoSettings + policy scopes)
+        run: bun run test:scope-regression
+
+      - name: RequeueLogPanel parity (paged rows == exported rows)
+        run: bun run test:requeue-parity
+
+      - name: CHW requeue end-to-end (failed-only)
+        run: bun run test:chw-requeue-e2e

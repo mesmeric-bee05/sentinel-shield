@@ -13,7 +13,11 @@
     "test:security": "bun run tests/security/rls-check.ts",
     "test:rls-regression": "bun run tests/security/rls-regression.test.ts",
     "test:security-sync": "bun run tests/security/security-sync.test.ts",
-    "test:all": "bun run test:security && bun run test:rls-regression && bun run test:security-sync"
+    "test:scope-regression": "bun run tests/security/scope-regression.test.ts",
+    "test:requeue-parity": "bun run tests/security/requeue-log-parity.test.ts",
+    "test:chw-requeue-e2e": "bun run tests/security/chw-requeue-e2e.test.ts",
+    "test:all": "bun run test:security && bun run test:rls-regression && bun run test:security-sync && bun run test:scope-regression && bun run test:requeue-parity && bun run test:chw-requeue-e2e",
+    "security-gate": "bun run scripts/ci/security-gate.ts"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

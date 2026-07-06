@@ -1,0 +1,29 @@
+name: Security scan gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Nightly re-check against main so regressions surface even without a PR.
+    - cron: "0 6 * * *"
+
+jobs:
+  scan-gate:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+
+      # Fails the build if ANY of the pinned internal_ids appear open again
+      # in security_findings. See scripts/ci/security-gate.ts for the list.
+      - name: Security-finding gate
+        run: bun run scripts/ci/security-gate.ts
