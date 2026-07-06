@@ -28,6 +28,8 @@ const STATUS_TONE: Record<SecuritySyncAttempt["status"], string> = {
   replay: "bg-orange-500/10 text-orange-700 border-orange-500/30",
   disabled: "bg-muted text-muted-foreground border-border",
   write_failed: "bg-rose-500/10 text-rose-700 border-rose-500/30",
+  payload_too_large: "bg-amber-500/10 text-amber-700 border-amber-500/30",
+  rate_limited: "bg-orange-500/10 text-orange-700 border-orange-500/30",
 };
 
 function SecuritySyncPage() {
