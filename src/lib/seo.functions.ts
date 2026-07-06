@@ -45,11 +45,14 @@ async function logGsc(opts: {
 }
 
 export const getSeoSettings = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) return { settings: null, error: "Forbidden" as const };
     const { data } = await supabaseAdmin.from("seo_settings")
       .select("gsc_meta_token, gsc_site_url, gsc_verified_at, gsc_sitemap_submitted_at, updated_at")
       .eq("id", 1).single();
-    return { settings: data ?? null };
+    return { settings: data ?? null, error: null as string | null };
   });
 
 export const getGscState = createServerFn({ method: "GET" })
