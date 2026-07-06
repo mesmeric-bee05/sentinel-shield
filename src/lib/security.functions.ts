@@ -43,7 +43,7 @@ export type SecuritySyncAttempt = {
   signature_valid: boolean;
   payload_bytes: number | null;
   finding_count: number | null;
-  status: "accepted" | "invalid_signature" | "invalid_payload" | "replay" | "disabled" | "write_failed";
+  status: "accepted" | "invalid_signature" | "invalid_payload" | "replay" | "disabled" | "write_failed" | "payload_too_large" | "rate_limited";
   error: string | null;
   duration_ms: number | null;
 };
@@ -52,7 +52,7 @@ export const listSecuritySyncAttempts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z.object({
-      status: z.enum(["accepted", "invalid_signature", "invalid_payload", "replay", "disabled", "write_failed"]).optional().nullable(),
+      status: z.enum(["accepted", "invalid_signature", "invalid_payload", "replay", "disabled", "write_failed", "payload_too_large", "rate_limited"]).optional().nullable(),
       limit: z.number().int().min(1).max(1000).default(500),
     }).parse(d ?? {}),
   )
