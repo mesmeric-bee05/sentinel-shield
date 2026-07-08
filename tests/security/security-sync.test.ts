@@ -107,6 +107,87 @@ try {
     ok("duplicate nonce → 409 replay, second row logged with status=replay");
   });
 
+  // ---------- Replay persistence: both attempt rows must exist ----------
+  await run("replay: accepted row keeps nonce, replay row logged (nonce=null, error mentions nonce)", async () => {
+    const nonce = `t-replay2-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    nonces.push(nonce);
+    const body = makeBody(nonce);
+    const first = await post(body, sign(body));
+    if (first.status !== 200) return bad("replay persistence assertions", `first status=${first.status}`);
+    // Accepted row: nonce persisted, status=accepted, signature_valid=true.
+    const { data: acc } = await admin
+      .from("security_sync_attempts" as never)
+      .select("status, signature_valid, nonce")
+      .eq("nonce", nonce)
+      .maybeSingle();
+    const accRow = acc as { status?: string; signature_valid?: boolean; nonce?: string } | null;
+    if (!accRow || accRow.status !== "accepted" || accRow.signature_valid !== true) {
+      return bad("replay persistence assertions", `accepted row missing/wrong: ${JSON.stringify(accRow)}`);
+    }
+    // Second POST with the same nonce → 409 replay + fresh audit row.
+    const bodyReplay = makeBody(nonce, new Date().toISOString());
+    const res = await post(bodyReplay, sign(bodyReplay));
+    if (res.status !== 409) return bad("replay persistence assertions", `replay status=${res.status}`);
+    const { data: rep } = await admin
+      .from("security_sync_attempts" as never)
+      .select("status, signature_valid, nonce, error")
+      .eq("status", "replay")
+      .gte("received_at", testStart)
+      .order("received_at", { ascending: false })
+      .limit(10);
+    const repRows = (rep ?? []) as { status: string; signature_valid: boolean; nonce: string | null; error: string | null }[];
+    const match = repRows.find((r) => r.signature_valid === true && r.nonce === null && (r.error ?? "").includes(nonce));
+    if (!match) return bad("replay persistence assertions", "no replay audit row referencing nonce");
+    ok("replay: accepted row keeps nonce, replay row logged (nonce=null, error mentions nonce)");
+  });
+
+  // ---------- Future issued_at is also outside the replay window ----------
+  await run("future issued_at → 400 invalid_payload row", async () => {
+    const nonce = `t-future-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const future = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const body = makeBody(nonce, future);
+    const res = await post(body, sign(body));
+    if (res.status !== 400) return bad("future issued_at → 400 invalid_payload row", `status=${res.status}`);
+    const { data } = await admin
+      .from("security_sync_attempts" as never)
+      .select("status, signature_valid, nonce, error")
+      .eq("nonce", nonce)
+      .maybeSingle();
+    const row = data as { status?: string; signature_valid?: boolean; error?: string | null } | null;
+    if (!row || row.status !== "invalid_payload" || row.signature_valid !== true) {
+      return bad("future issued_at → 400 invalid_payload row", `row=${JSON.stringify(row)}`);
+    }
+    if (!row.error || !/replay window|stale issued_at/i.test(row.error)) {
+      return bad("future issued_at → 400 invalid_payload row", `error=${row.error}`);
+    }
+    ok("future issued_at → 400 invalid_payload row");
+    nonces.push(nonce);
+  });
+
+  // ---------- Signature failure does NOT touch security_findings ----------
+  await run("invalid signature never writes to security_findings", async () => {
+    const nonce = `t-sigfx-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    // Emit a scanner name only this test would use so we can head-count it.
+    const scanner = `${SCANNER}-badsig`;
+    const body = JSON.stringify({
+      nonce,
+      issued_at: new Date().toISOString(),
+      findings: [{ scanner_name: scanner, internal_id: `${nonce}-f`, title: "should never persist", severity: "info", status: "open" }],
+    });
+    const { count: before } = await admin
+      .from("security_findings")
+      .select("id", { count: "exact", head: true })
+      .eq("scanner_name", scanner);
+    const res = await post(body, sign(body, "wrong-secret-value"));
+    if (res.status !== 401) return bad("invalid signature never writes to security_findings", `status=${res.status}`);
+    const { count: after } = await admin
+      .from("security_findings")
+      .select("id", { count: "exact", head: true })
+      .eq("scanner_name", scanner);
+    if ((after ?? 0) !== (before ?? 0)) return bad("invalid signature never writes to security_findings", `count changed ${before} → ${after}`);
+    ok("invalid signature never writes to security_findings");
+  });
+
   // ---------- Stale issued_at ----------
   await run("stale issued_at → 400 invalid_payload row", async () => {
     const nonce = `t-stale-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
