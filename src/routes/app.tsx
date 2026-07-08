@@ -48,6 +48,7 @@ function AppShell() {
     { to: "/app/admin/roles", label: "Roles", icon: UserCog, show: isAdmin },
     { to: "/app/admin/security", label: "Security tracker", icon: ShieldCheck, show: isAdmin },
     { to: "/app/admin/security-sync", label: "Sync audit", icon: ShieldCheck, show: isAdmin },
+    { to: "/app/admin/security-audit", label: "Finding audit log", icon: ShieldCheck, show: isAdmin },
   ].filter((n) => n.show !== false);
 
   return (

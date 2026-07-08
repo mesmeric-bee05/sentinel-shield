@@ -8,6 +8,11 @@ on:
     # Nightly re-check against main so regressions surface even without a PR.
     - cron: "0 6 * * *"
 
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
 jobs:
   scan-gate:
     runs-on: ubuntu-latest
@@ -15,6 +20,7 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      SECURITY_GATE_OUTPUT: /tmp/security-gate.json
 
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +30,62 @@ jobs:
       - run: bun install --frozen-lockfile
 
       # Fails the build if ANY of the pinned internal_ids appear open again
-      # in security_findings. See scripts/ci/security-gate.ts for the list.
+      # in security_findings. Emits ::error annotations, a job summary, and a
+      # JSON payload at $SECURITY_GATE_OUTPUT for the notifier step below.
       - name: Security-finding gate
+        id: gate
         run: bun run scripts/ci/security-gate.ts
+
+      # Upsert a single sticky PR comment on failure; delete it on recovery.
+      - name: PR comment (reintroduced findings)
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          GATE_OUTCOME: ${{ steps.gate.outcome }}
+        with:
+          script: |
+            const fs = require('fs');
+            const MARKER = '<!-- security-scan-gate -->';
+            let payload = { ok: true, open: [], run_url: null };
+            try {
+              payload = JSON.parse(fs.readFileSync(process.env.SECURITY_GATE_OUTPUT, 'utf8'));
+            } catch {}
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const list = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = list.data.find(c => (c.body ?? '').includes(MARKER));
+            if (payload.ok && payload.open.length === 0) {
+              if (existing) await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });
+              return;
+            }
+            const runUrl = payload.run_url ?? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const rows = payload.open.map(f =>
+              `| \`${f.internal_id}\` | ${f.severity} | ${f.scanner_name} | ${f.status} | ${f.last_seen_at} | ${(f.title || '').replace(/\|/g, '\\|')} |`
+            ).join('\n');
+            const body = [
+              MARKER,
+              `### ❌ Security-scan gate — ${payload.open.length} pinned finding(s) reintroduced`,
+              '',
+              '| Internal ID | Severity | Scanner | Status | Last seen | Title |',
+              '|---|---|---|---|---|---|',
+              rows,
+              '',
+              `[View workflow run](${runUrl})`,
+            ].join('\n');
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      # Fan out to Slack / email — only on main pushes and scheduled runs so
+      # every PR doesn't page the on-call channel. Both integrations no-op
+      # when their secrets are absent.
+      - name: Notify (Slack / email)
+        if: failure() && github.event_name != 'pull_request'
+        env:
+          SLACK_SECURITY_WEBHOOK: ${{ secrets.SLACK_SECURITY_WEBHOOK }}
+          SECURITY_ALERT_EMAIL: ${{ secrets.SECURITY_ALERT_EMAIL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SECURITY_ALERT_FROM: ${{ secrets.SECURITY_ALERT_FROM }}
+        run: bun run scripts/ci/notify-security.ts

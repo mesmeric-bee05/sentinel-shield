@@ -80,3 +80,44 @@ export const listSecuritySyncAttempts = createServerFn({ method: "POST" })
     }
     return { error: null as string | null, attempts, counts24h };
   });
+
+export type SecurityFindingAuditRow = {
+  id: string;
+  created_at: string;
+  internal_id: string;
+  scanner_name: string;
+  resolution: string;
+  resolved_by: string | null;
+  affected_endpoints: string[];
+  affected_queries: string[];
+  notes: string | null;
+};
+
+export const listSecurityFindingAudit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      resolution: z.enum(["fixed", "ignored", "reintroduced"]).optional().nullable(),
+      limit: z.number().int().min(1).max(1000).default(1000),
+    }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) return { error: "Forbidden" as const, rows: [] as SecurityFindingAuditRow[], counts: { fixed: 0, ignored: 0, reintroduced: 0 } };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
+      .from("security_finding_audit")
+      .select("id, created_at, internal_id, scanner_name, resolution, resolved_by, affected_endpoints, affected_queries, notes")
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+    if (data.resolution) q = q.eq("resolution", data.resolution);
+
+    const { data: rows, error } = await q;
+    if (error) return { error: error.message, rows: [] as SecurityFindingAuditRow[], counts: { fixed: 0, ignored: 0, reintroduced: 0 } };
+
+    const counts = { fixed: 0, ignored: 0, reintroduced: 0 } as Record<string, number>;
+    for (const r of rows ?? []) counts[r.resolution as string] = (counts[r.resolution as string] ?? 0) + 1;
+
+    return { error: null as string | null, rows: (rows ?? []) as SecurityFindingAuditRow[], counts: counts as { fixed: number; ignored: number; reintroduced: number } };
+  });

@@ -1,111 +1,75 @@
-# Hardening + verification plan
+## Scope
 
-Eight deliverables, grouped so related edits ship together. Nothing here changes existing product UX beyond the admin surfaces already present.
+Four concrete deliverables on top of the existing security/CI stack. The uploaded ApexCare blueprint is noted as long-term north star, but this plan only covers what's actionable now — I'll flag blueprint items as follow-ups rather than silently expanding scope.
 
-## 1. CI: run test:security + test:rls-regression on every PR
+---
 
-- New workflow `.github/workflows/ci.yml` runs on `pull_request` and `push` to main:
-  - `bun install --frozen-lockfile`
-  - `bun run typecheck` (adds `tsgo --noEmit` script if missing)
-  - `bun run test:security`
-  - `bun run test:rls-regression`
-  - `bun run test:unit` (new; vitest for the parity + auth tests below)
-- Steps use `continue-on-error: false`, and each `bun run test:*` is wrapped so stdout+stderr are echoed to the job log (no swallowing). Failing suites fail the check.
-- `docs/CI.md` documents the same commands so contributors without GitHub Actions can reproduce locally.
+### 1. PR annotations + optional Slack/email alerts for the security-scan gate
 
-## 2. Security-scan gate in CI
+Extend `.github/workflows/security-scan.yml` and `scripts/ci/security-gate.ts`:
 
-- New workflow `.github/workflows/security-scan.yml` runs on PRs and nightly on main.
-- Uses `SECURITY_SYNC_SECRET` (GitHub secret) to POST a signed "scan" request to `project--{id}.lovable.app/api/public/security-sync?trigger=1` and then queries the `security_findings` table via the publishable Data API.
-- Job fails if any row has `internal_id` in the pinned list: `seo_settings_unauthed`, `provider_availability_public_read`, `travel_time_cache_broad_authenticated_read`.
-- List lives in `scripts/ci/security-gate.ts` so we can extend it later.
+- Gate script emits **GitHub workflow annotations** (`::error file=...,title=...::message`) for each open pinned `internal_id`, so the finding appears inline on the PR "Files changed" and "Checks" tabs.
+- Also write a **job summary** (`$GITHUB_STEP_SUMMARY`) with a markdown table: `internal_id | severity | scanner | last_seen_at | link`. Link points to `/app/admin/security` filtered by that finding.
+- Workflow adds a **`pull_request` comment step** (using `actions/github-script`) that upserts a single sticky comment listing reintroduced findings, or deletes it when clean.
+- Optional notifiers, gated on repo secrets so forks stay green:
+  - `SLACK_SECURITY_WEBHOOK` → post a Slack Block Kit message with the same table + run URL.
+  - `SECURITY_ALERT_EMAIL` + existing Resend integration → send a plain-text email via a small `scripts/ci/notify-security.ts`.
+- Both notifiers fire **only on `push` to main or scheduled runs** (not every PR) to avoid noise; PRs rely on annotations + sticky comment.
 
-## 3. Rate limiting + body-size cap on /api/public/security-sync
+### 2. Expand security-sync replay/timestamp E2E coverage
 
-- Add a **16 KB body cap**: read `content-length`; if missing or > 16384, respond `413` and log `status='payload_too_large'`.
-- Add a **DB-backed per-IP window**: before signature verification, count rows in `security_sync_attempts` for `source_ip` in the last 60s; if `> 30`, respond `429` and log `status='rate_limited'`. Legit syncs (well under 1/sec) are unaffected.
-- `source_ip` is derived from `cf-connecting-ip` → `x-forwarded-for` first hop → `request.headers.get('x-real-ip')`.
-- New tests in `tests/security/security-sync.test.ts` cover:
-  - oversized body → 413 + attempt row
-  - 31st request in 60s from same IP → 429 + attempt row
-  - different IPs are counted separately
+Extend `tests/security/security-sync.test.ts`:
 
-## 4. CHW requeue E2E (Playwright via shell)
+- **Replay by nonce**: POST a valid signed payload → 200. Re-POST the exact same body/signature → expect 409 `replay`. Query `security_sync_attempts` and assert two rows: first `status='accepted'` with the nonce persisted; second `status='replay'` with `nonce=null` (per current writer) and `error` containing `duplicate nonce`.
+- **Stale timestamp**: POST with `issued_at` set to `now - 10min` (outside `REPLAY_WINDOW_MS`) → 400 `invalid_payload: stale issued_at`. Assert an attempt row exists with `status='invalid_payload'`, `signature_valid=true`, and the submitted nonce recorded.
+- **Future timestamp**: `now + 10min` → same 400 + attempt row.
+- **Signature failure logging** (already partly covered — tighten): assert `status='invalid_signature'`, `signature_valid=false`, `nonce=null`, and that **no `security_findings` upsert** occurred (query count before/after).
+- Uses existing service-role client fixtures; cleans up inserted attempts by nonce/source_ip prefix at teardown.
 
-- New `tests/e2e/chw-requeue.spec.ts` seeded via a small `tests/e2e/seed.ts` helper (uses `supabaseAdmin`) that:
-  1. Creates 5 `chw_assignments`: 3 `failed`, 2 `succeeded`.
-  2. Signs in as a seeded admin, opens `/app/admin/chw-queue`, clicks "Requeue failed".
-  3. Asserts that exactly the 3 failed IDs appear in `chw_requeue_log` with outcome `requeued`, and the 2 succeeded IDs have no new log rows.
-  4. Re-runs "Requeue failed" and asserts the same 3 rows are unchanged in count (idempotent for already-in-flight).
-- Runner script `bun run test:e2e` (Playwright with headless Chromium, uses the pre-installed browser per project convention).
+### 3. CSV/JSON export for `security_finding_audit` page
 
-## 5. RequeueLogPanel filter + pagination parity (vitest + RTL)
+The audit page currently renders read-only. Bring it to parity with other admin history panels:
 
-- New `tests/ui/requeue-log-panel.test.tsx` mounts `RequeueLogPanel` with a mocked `listRequeueLog` server fn.
-- For a fixed fake dataset of ~150 rows across scopes/outcomes/dates:
-  - Drives the search, scope, date filters and pager.
-  - Captures the request args passed to the mocked server fn for each page shown.
-  - Calls the same export helpers the panel calls for CSV and JSON.
-  - Asserts that the union of rows across paged calls == parsed CSV rows == parsed JSON rows, and that column ordering + escaping match byte-for-byte.
-- Registered under `bun run test:unit`.
+- Reuse `src/components/admin/HistoryFilters.tsx` (search/from/to/status) and `paginate` / `Pager` helpers.
+- Status options: `fixed | ignored | reintroduced`.
+- Searchable text: `internal_id`, `scanner_name`, `notes`, joined `affected_endpoints`, joined `affected_queries`.
+- CSV columns via `ExportColumn<T>[]` from `src/lib/exports.ts`: `created_at, internal_id, scanner_name, resolution, resolved_by, affected_endpoints (semicolon-joined), affected_queries (semicolon-joined), notes`.
+- JSON export = raw filtered rows (unpaged).
+- Server function `listSecurityFindingAudit` (in `src/lib/security.functions.ts`) returns up to 1000 rows, admin-gated via `has_role`. Filtering/pagination happens client-side against that page like other panels — matches the requeue-log parity test pattern so a follow-up parity test is trivial.
 
-## 6. Auth + RLS scope tests
+### 4. Database indexes for hot query paths
 
-Extend `tests/security/rls-regression.test.ts` (or new sibling `tests/security/scope-regression.test.ts`) with:
+Single migration adding indexes that back the rate-limit lookup, replay detection, and export queries.
 
-- `getSeoSettings`:
-  - anon call → `{ settings: null, error: 'Forbidden' }` (via `Response 401` from `requireSupabaseAuth`)
-  - signed-in non-admin → `{ settings: null, error: 'Forbidden' }`
-  - admin → `settings` returned
-- `provider_availability`:
-  - Seed one active + one inactive provider each with an availability row.
-  - anon SELECT sees only the active provider's row; inactive one is filtered.
-- `travel_time_cache`:
-  - Seed one row via service role.
-  - anon SELECT → 0 rows / error
-  - authenticated non-admin → 0 rows
-  - admin → row visible
-  - service role write path continues to work
+```text
+security_sync_attempts:
+  idx_ssa_source_ip_received_at   (source_ip, received_at DESC)   -- rate-limit window scan
+  idx_ssa_received_at             (received_at DESC)              -- admin list + export ORDER BY
+  idx_ssa_status_received_at      (status, received_at DESC)      -- status filter
+  -- nonce already has UNIQUE index (replay); no change
 
-## 7. security_finding_audit table + writer
+chw_requeue_log:
+  idx_crl_created_at              (created_at DESC)               -- default list order + export
+  idx_crl_assignment_id           (assignment_id)                 -- per-assignment history
+  idx_crl_actor_id_created_at     (actor_id, created_at DESC)     -- "my requeues" scope
+  idx_crl_outcome_created_at      (outcome, created_at DESC)      -- failed-only filters
+```
 
-- Migration creates:
+All `CREATE INDEX IF NOT EXISTS` (idempotent, safe re-run). No RLS or grant changes.
 
-  ```sql
-  CREATE TABLE public.security_finding_audit (
-    id uuid PK,
-    internal_id text NOT NULL,
-    scanner_name text NOT NULL,
-    resolution text NOT NULL, -- 'fixed' | 'ignored' | 'reintroduced'
-    affected_endpoints text[] NOT NULL DEFAULT '{}',
-    affected_queries  text[] NOT NULL DEFAULT '{}',
-    notes text,
-    resolved_by uuid REFERENCES auth.users,
-    created_at timestamptz NOT NULL DEFAULT now()
-  );
-  ```
-  followed by the mandatory GRANT block (authenticated SELECT, service_role ALL — no anon), RLS enabled, admin-only SELECT policy, service-role-only INSERT (via a `SECURITY DEFINER` `log_security_fix(...)` RPC gated by `has_role(auth.uid(),'admin')`).
-- Backfill migration inserts three rows for the already-fixed findings:
-  - `seo_settings_unauthed` — endpoints: `getSeoSettings`; notes: added `requireSupabaseAuth` + admin check.
-  - `provider_availability_public_read` — queries: `provider_availability SELECT`; notes: added active-provider filter.
-  - `travel_time_cache_broad_authenticated_read` — queries: `travel_time_cache SELECT`; notes: restricted to admin.
-- `security-sync` webhook, after a successful accepted apply, calls `log_security_fix` for each finding transitioning to fixed so the log stays current.
-- New admin surface `/app/admin/security-audit` (small, read-only table) shows the log with CSV export, following the existing admin page pattern.
-
-## 8. Re-run the security scan and confirm
-
-- Call `security--run_security_scan` after all edits land.
-- Confirm the three fixed `internal_id`s are absent and report any new findings back for triage (won't auto-fix — outside the requested scope).
+---
 
 ## Technical notes
 
-- Rate-limit numbers (30 req / 60 s / IP, 16 KB) are picked to sit an order of magnitude above expected sync cadence; both are configurable via env (`SECURITY_SYNC_RATE_MAX`, `SECURITY_SYNC_MAX_BYTES`).
-- Playwright uses the sandbox's pre-installed Chromium; workflow uses `npx playwright install --with-deps chromium` for GitHub-hosted runners.
-- CI workflows require GitHub secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `SECURITY_SYNC_SECRET`, `PROJECT_ID`. Documented in `docs/CI.md`.
-- No existing table or policy is loosened; the RLS scope tests will fail loudly if a future migration regresses the fixes.
+- No new secrets are required unless the user wires Slack/email — those steps auto-skip when their secrets are absent (same pattern as `security-gate.ts`).
+- The audit-page server fn reuses the existing `has_role` admin check and `supabaseAdmin` inside the handler (per server-side rules).
+- Indexes are additive; existing queries in `src/routes/api/public/security-sync.ts` (the `count(*) where source_ip=? and received_at>=?` lookup) will pick up `idx_ssa_source_ip_received_at` automatically.
 
-## Out of scope
+## Out of scope (blueprint follow-ups)
 
-- Rewriting existing admin pages beyond the small new `/app/admin/security-audit` view.
-- Global rate-limit primitive for other public routes (only `/api/public/security-sync` is in scope).
-- Changing the webhook signature/nonce contract.
+The ApexCare blueprint (AI scribe, WebRTC telemedicine, blockchain audit trail, WebAuthn, omnichannel booking, predictive no-show model, etc.) is much larger than this turn. I'll treat it as a backlog and can plan phase 1 (e.g. WebAuthn on admin routes, or the predictive no-show pipeline) as a separate dedicated plan when you're ready — trying to fold any of it into this turn would bury the four items you asked for.
+
+## Files touched
+
+- Edit: `.github/workflows/security-scan.yml`, `scripts/ci/security-gate.ts`, `tests/security/security-sync.test.ts`, `src/routes/app.admin.security-audit.tsx` (or equivalent audit page), `src/lib/security.functions.ts`
+- Create: `scripts/ci/notify-security.ts`, `supabase/migrations/<ts>_hot_path_indexes.sql`
