@@ -352,6 +352,7 @@ try {
   try {
     await admin.from("security_sync_attempts" as never).delete().gte("received_at", testStart);
     await admin.from("security_findings").delete().eq("scanner_name", SCANNER);
+    await admin.from("security_findings").delete().eq("scanner_name", `${SCANNER}-badsig`);
   } catch { /* best effort */ }
 }
 
