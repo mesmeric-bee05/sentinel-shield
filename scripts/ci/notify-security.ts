@@ -19,7 +19,7 @@ type OpenFinding = {
   status: string;
   last_seen_at: string;
 };
-type Payload = { ok: boolean; open: OpenFinding[]; run_url: string | null };
+type Payload = { ok: boolean; open: OpenFinding[]; run_url: string | null; artifact_url?: string | null; report_url?: string | null };
 
 const OUTPUT_PATH = process.env.SECURITY_GATE_OUTPUT ?? "/tmp/security-gate.json";
 
