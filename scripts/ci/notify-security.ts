@@ -19,7 +19,7 @@ type OpenFinding = {
   status: string;
   last_seen_at: string;
 };
-type Payload = { ok: boolean; open: OpenFinding[]; run_url: string | null };
+type Payload = { ok: boolean; open: OpenFinding[]; run_url: string | null; artifact_url?: string | null; report_url?: string | null };
 
 const OUTPUT_PATH = process.env.SECURITY_GATE_OUTPUT ?? "/tmp/security-gate.json";
 
@@ -50,12 +50,21 @@ const findingLines = payload.open
   .map((f) => `• *${f.internal_id}* [${f.severity}] ${f.scanner_name} — ${f.title} (last_seen ${f.last_seen_at})`)
   .join("\n");
 
+// Links block — reused across Slack and email so admins can click straight
+// from the alert into the workflow run, the JSON artifact, or the in-app
+// security tracker.
+const links: { label: string; url: string }[] = [];
+if (payload.run_url) links.push({ label: "Workflow run", url: payload.run_url });
+if (payload.artifact_url) links.push({ label: "Scan artifact", url: payload.artifact_url });
+if (payload.report_url) links.push({ label: "Security tracker", url: payload.report_url });
+
 // --- Slack -----------------------------------------------------------
 if (slackUrl) {
+  const linkLine = links.map((l) => `<${l.url}|${l.label}>`).join("  ·  ");
   const blocks = [
     { type: "header", text: { type: "plain_text", text: `🚨 Security-scan gate: ${payload.open.length} pinned finding(s) reintroduced` } },
     { type: "section", text: { type: "mrkdwn", text: findingLines } },
-    ...(payload.run_url ? [{ type: "context", elements: [{ type: "mrkdwn", text: `<${payload.run_url}|View workflow run>` }] }] : []),
+    ...(linkLine ? [{ type: "context", elements: [{ type: "mrkdwn", text: linkLine }] }] : []),
   ];
   const res = await fetch(slackUrl, {
     method: "POST",
@@ -83,7 +92,7 @@ if (emailTo) {
         <thead><tr><th>Internal ID</th><th>Severity</th><th>Scanner</th><th>Title</th><th>Last seen</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      ${payload.run_url ? `<p><a href="${payload.run_url}">View workflow run</a></p>` : ""}
+      ${links.length ? `<p>${links.map((l) => `<a href="${l.url}">${l.label}</a>`).join(" · ")}</p>` : ""}
     `;
     const to = emailTo.split(",").map((s) => s.trim()).filter(Boolean);
     const res = await fetch("https://api.resend.com/emails", {

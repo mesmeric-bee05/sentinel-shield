@@ -26,6 +26,8 @@ const RUN_URL =
   process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
     ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
     : null;
+const ARTIFACT_URL = RUN_URL ? `${RUN_URL}#artifacts` : null;
+const REPORT_URL = process.env.SECURITY_REPORT_URL ?? null;
 
 type OpenFinding = {
   internal_id: string;
@@ -42,14 +44,14 @@ function writeSummary(md: string) {
   }
 }
 
-function writeOutput(payload: { ok: boolean; open: OpenFinding[]; run_url: string | null }) {
+function writeOutput(payload: { ok: boolean; open: OpenFinding[]; run_url: string | null; artifact_url: string | null; report_url: string | null }) {
   try { writeFileSync(OUTPUT_PATH, JSON.stringify(payload, null, 2)); } catch { /* best effort */ }
 }
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.warn("⚠  security-gate: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing — skipping gate.");
   writeSummary("## Security-scan gate\n\n⚠ Skipped — service-role credentials not available in this run.");
-  writeOutput({ ok: true, open: [], run_url: RUN_URL });
+  writeOutput({ ok: true, open: [], run_url: RUN_URL, artifact_url: ARTIFACT_URL, report_url: REPORT_URL });
   process.exit(0);
 }
 
@@ -65,7 +67,7 @@ const { data, error } = await admin
 if (error) {
   console.error(`security-gate: query failed: ${error.message}`);
   writeSummary(`## Security-scan gate\n\n❌ Query failed: \`${error.message}\``);
-  writeOutput({ ok: false, open: [], run_url: RUN_URL });
+  writeOutput({ ok: false, open: [], run_url: RUN_URL, artifact_url: ARTIFACT_URL, report_url: REPORT_URL });
   process.exit(2);
 }
 
@@ -74,7 +76,7 @@ const openFindings = (data ?? []) as OpenFinding[];
 if (openFindings.length === 0) {
   console.log(`✅ security-gate: none of ${PINNED.length} pinned findings are open.`);
   writeSummary(`## Security-scan gate\n\n✅ All ${PINNED.length} pinned findings remain resolved.\n\nPinned IDs: ${PINNED.map((id) => `\`${id}\``).join(", ")}`);
-  writeOutput({ ok: true, open: [], run_url: RUN_URL });
+  writeOutput({ ok: true, open: [], run_url: RUN_URL, artifact_url: ARTIFACT_URL, report_url: REPORT_URL });
   process.exit(0);
 }
 
@@ -97,5 +99,5 @@ writeSummary(
   `## Security-scan gate — FAILED\n\n${openFindings.length} pinned finding(s) reintroduced. See the [Security tracker](../app/admin/security) for the full context.\n\n| Internal ID | Severity | Scanner | Status | Last seen | Title |\n|---|---|---|---|---|---|\n${rows}\n`
 );
 
-writeOutput({ ok: false, open: openFindings, run_url: RUN_URL });
+writeOutput({ ok: false, open: openFindings, run_url: RUN_URL, artifact_url: ARTIFACT_URL, report_url: REPORT_URL });
 process.exit(1);

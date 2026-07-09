@@ -34,7 +34,22 @@ jobs:
       # JSON payload at $SECURITY_GATE_OUTPUT for the notifier step below.
       - name: Security-finding gate
         id: gate
+        env:
+          SECURITY_REPORT_URL: ${{ secrets.SECURITY_REPORT_URL }}
         run: bun run scripts/ci/security-gate.ts
+
+      # Publish the JSON payload as a workflow artifact so notifications
+      # (Slack / email) can deep-link to a machine-readable record and
+      # future runs can diff against it.
+      - name: Upload gate payload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-gate-payload
+          path: /tmp/security-gate.json
+          if-no-files-found: ignore
+          retention-days: 30
+
 
       # Upsert a single sticky PR comment on failure; delete it on recovery.
       - name: PR comment (reintroduced findings)
