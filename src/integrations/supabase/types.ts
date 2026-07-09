@@ -858,7 +858,17 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      security_sync_metrics_daily: {
+        Row: {
+          avg_duration_ms: number | null
+          bytes: number | null
+          count: number | null
+          day: string | null
+          last_seen: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       acquire_slot_hold: {
