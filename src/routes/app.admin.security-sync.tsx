@@ -34,8 +34,11 @@ const STATUS_TONE: Record<SecuritySyncAttempt["status"], string> = {
 
 function SecuritySyncPage() {
   const listFn = useServerFn(listSecuritySyncAttempts);
+  const metricsFn = useServerFn(getSecuritySyncMetrics);
   const [attempts, setAttempts] = useState<SecuritySyncAttempt[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [metrics, setMetrics] = useState<SecuritySyncDailyMetric[]>([]);
+  const [topIps, setTopIps] = useState<{ source_ip: string; count: number }[]>([]);
   const [forbidden, setForbidden] = useState<ForbiddenInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<HistoryFilterState>(emptyFilters);
@@ -44,12 +47,17 @@ function SecuritySyncPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await listFn({ data: {} });
-      const denial = reasonFromResult(r);
+      const [r, m] = await Promise.all([
+        listFn({ data: {} }),
+        metricsFn({ data: { days: 14 } }),
+      ]);
+      const denial = reasonFromResult(r) ?? reasonFromResult(m);
       if (denial) { setForbidden(denial); setLoading(false); return; }
       setForbidden(null);
       setAttempts(r.attempts ?? []);
       setCounts(r.counts24h ?? {});
+      setMetrics(m.metrics ?? []);
+      setTopIps(m.topIps ?? []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load sync attempts");
     }
@@ -62,6 +70,7 @@ function SecuritySyncPage() {
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   const filtered = useMemo(
     () => applyHistoryFilter(attempts, filters, {
