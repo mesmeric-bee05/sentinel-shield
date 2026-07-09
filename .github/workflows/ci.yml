@@ -54,3 +54,7 @@ jobs:
 
       - name: CHW requeue end-to-end (failed-only)
         run: bun run test:chw-requeue-e2e
+
+      - name: Security-audit export parity (paged rows == exported rows)
+        run: bun run test:audit-parity
+
