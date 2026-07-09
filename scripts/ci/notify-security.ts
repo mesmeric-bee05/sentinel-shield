@@ -92,7 +92,7 @@ if (emailTo) {
         <thead><tr><th>Internal ID</th><th>Severity</th><th>Scanner</th><th>Title</th><th>Last seen</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      ${payload.run_url ? `<p><a href="${payload.run_url}">View workflow run</a></p>` : ""}
+      ${links.length ? `<p>${links.map((l) => `<a href="${l.url}">${l.label}</a>`).join(" · ")}</p>` : ""}
     `;
     const to = emailTo.split(",").map((s) => s.trim()).filter(Boolean);
     const res = await fetch("https://api.resend.com/emails", {
