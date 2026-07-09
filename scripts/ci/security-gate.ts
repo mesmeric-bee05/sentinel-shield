@@ -26,6 +26,8 @@ const RUN_URL =
   process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
     ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
     : null;
+const ARTIFACT_URL = RUN_URL ? `${RUN_URL}#artifacts` : null;
+const REPORT_URL = process.env.SECURITY_REPORT_URL ?? null;
 
 type OpenFinding = {
   internal_id: string;
