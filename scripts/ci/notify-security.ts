@@ -50,12 +50,21 @@ const findingLines = payload.open
   .map((f) => `• *${f.internal_id}* [${f.severity}] ${f.scanner_name} — ${f.title} (last_seen ${f.last_seen_at})`)
   .join("\n");
 
+// Links block — reused across Slack and email so admins can click straight
+// from the alert into the workflow run, the JSON artifact, or the in-app
+// security tracker.
+const links: { label: string; url: string }[] = [];
+if (payload.run_url) links.push({ label: "Workflow run", url: payload.run_url });
+if (payload.artifact_url) links.push({ label: "Scan artifact", url: payload.artifact_url });
+if (payload.report_url) links.push({ label: "Security tracker", url: payload.report_url });
+
 // --- Slack -----------------------------------------------------------
 if (slackUrl) {
+  const linkLine = links.map((l) => `<${l.url}|${l.label}>`).join("  ·  ");
   const blocks = [
     { type: "header", text: { type: "plain_text", text: `🚨 Security-scan gate: ${payload.open.length} pinned finding(s) reintroduced` } },
     { type: "section", text: { type: "mrkdwn", text: findingLines } },
-    ...(payload.run_url ? [{ type: "context", elements: [{ type: "mrkdwn", text: `<${payload.run_url}|View workflow run>` }] }] : []),
+    ...(linkLine ? [{ type: "context", elements: [{ type: "mrkdwn", text: linkLine }] }] : []),
   ];
   const res = await fetch(slackUrl, {
     method: "POST",
