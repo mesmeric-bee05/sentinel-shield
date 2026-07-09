@@ -121,3 +121,59 @@ export const listSecurityFindingAudit = createServerFn({ method: "POST" })
 
     return { error: null as string | null, rows: (rows ?? []) as SecurityFindingAuditRow[], counts: counts as { fixed: number; ignored: number; reintroduced: number } };
   });
+
+export type SecuritySyncDailyMetric = {
+  day: string;
+  status: string;
+  count: number;
+  bytes: number | null;
+  avg_duration_ms: number | null;
+  last_seen: string | null;
+};
+
+/**
+ * Daily aggregate over `security_sync_metrics_daily` view — powers the
+ * top-of-page rollup on the sync audit dashboard. Admin-only; reads via
+ * service role because the view has no anon/authenticated grants.
+ */
+export const getSecuritySyncMetrics = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      days: z.number().int().min(1).max(90).default(14),
+    }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) return { error: "Forbidden" as const, metrics: [] as SecuritySyncDailyMetric[], topIps: [] as { source_ip: string; count: number }[] };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const since = new Date(Date.now() - data.days * 86400_000).toISOString();
+
+    const { data: metrics, error } = await supabaseAdmin
+      .from("security_sync_metrics_daily" as never)
+      .select("day, status, count, bytes, avg_duration_ms, last_seen")
+      .gte("day", since)
+      .order("day", { ascending: false });
+    if (error) return { error: error.message, metrics: [] as SecuritySyncDailyMetric[], topIps: [] as { source_ip: string; count: number }[] };
+
+    // Top offender IPs in the same window (non-accepted attempts).
+    const { data: ipRows } = await supabaseAdmin
+      .from("security_sync_attempts" as never)
+      .select("source_ip, status")
+      .gte("received_at", since)
+      .neq("status", "accepted")
+      .limit(5000);
+    const ipCounts: Record<string, number> = {};
+    for (const r of (ipRows ?? []) as { source_ip: string | null }[]) {
+      const ip = r.source_ip ?? "unknown";
+      ipCounts[ip] = (ipCounts[ip] ?? 0) + 1;
+    }
+    const topIps = Object.entries(ipCounts)
+      .map(([source_ip, count]) => ({ source_ip, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    return { error: null as string | null, metrics: (metrics ?? []) as unknown as SecuritySyncDailyMetric[], topIps };
+  });
+
