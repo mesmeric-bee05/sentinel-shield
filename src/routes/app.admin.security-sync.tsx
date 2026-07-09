@@ -108,6 +108,10 @@ function SecuritySyncPage() {
         <Stat label="Write failed" value={counts.write_failed ?? 0} icon={<AlertCircle className="w-4 h-4" />} tone="bg-rose-500/10 text-rose-700" />
       </div>
 
+      <MetricsPanel metrics={metrics} topIps={topIps} />
+
+
+
       <div className="mb-2 text-xs text-muted-foreground flex items-center gap-2">
         <Clock className="w-3 h-3" /> Auto-refresh every 15s
         <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={load}>
