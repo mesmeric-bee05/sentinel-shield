@@ -1,75 +1,105 @@
 ## Scope
 
-Four concrete deliverables on top of the existing security/CI stack. The uploaded ApexCare blueprint is noted as long-term north star, but this plan only covers what's actionable now — I'll flag blueprint items as follow-ups rather than silently expanding scope.
+Four additions on top of the existing security tracker + CHW queue infrastructure. No changes to booking/CHW/SMS flows (those diagnostics from the pasted advice are already addressed in earlier turns — flagging here so we don't redo them).
 
----
+## 1. Export parity tests for `security_finding_audit`
 
-### 1. PR annotations + optional Slack/email alerts for the security-scan gate
+New file: `tests/security/audit-export-parity.test.ts`
 
-Extend `.github/workflows/security-scan.yml` and `scripts/ci/security-gate.ts`:
+- Seed ~30 rows in `security_finding_audit` via service role covering all three resolutions, varied dates, endpoints, queries, notes.
+- For each fixture case (no filter, resolution filter, search filter, date range, empty result, last-page pagination boundary):
+  - Call `listSecurityFindingAudit` via the server fn as an admin user.
+  - Apply the same `applyHistoryFilter` + `paginate` locally.
+  - Build CSV via `downloadCsv` column defs (extracted to a pure helper so the test can call it without DOM) and JSON via `downloadJson` helper.
+  - Assert row count, header row, and byte-equivalence between paged view and export.
+- Refactor: extract the export column config from `app.admin.security-audit.tsx` into `src/lib/security-audit-export.ts` so both the page and tests import it (no duplication).
+- Wire `test:audit-export-parity` in `package.json` and add to `test:all`.
 
-- Gate script emits **GitHub workflow annotations** (`::error file=...,title=...::message`) for each open pinned `internal_id`, so the finding appears inline on the PR "Files changed" and "Checks" tabs.
-- Also write a **job summary** (`$GITHUB_STEP_SUMMARY`) with a markdown table: `internal_id | severity | scanner | last_seen_at | link`. Link points to `/app/admin/security` filtered by that finding.
-- Workflow adds a **`pull_request` comment step** (using `actions/github-script`) that upserts a single sticky comment listing reintroduced findings, or deletes it when clean.
-- Optional notifiers, gated on repo secrets so forks stay green:
-  - `SLACK_SECURITY_WEBHOOK` → post a Slack Block Kit message with the same table + run URL.
-  - `SECURITY_ALERT_EMAIL` + existing Resend integration → send a plain-text email via a small `scripts/ci/notify-security.ts`.
-- Both notifiers fire **only on `push` to main or scheduled runs** (not every PR) to avoid noise; PRs rely on annotations + sticky comment.
+## 2. `notify-security.ts` tests
 
-### 2. Expand security-sync replay/timestamp E2E coverage
+New file: `tests/security/notify-security.test.ts`
 
-Extend `tests/security/security-sync.test.ts`:
+- Refactor `scripts/ci/notify-security.ts` to export a pure `runNotify({ payload, env, fetchImpl, logger })` function; keep the current top-level script as a thin wrapper reading env + file.
+- Tests using a mock `fetchImpl`:
+  - Payload with `ok: true` or empty `open` → no fetch calls, exit 0.
+  - Neither Slack nor email configured → no fetch calls, log line emitted.
+  - Slack only configured → exactly one POST to the webhook, correct Block Kit body.
+  - Email configured but `RESEND_API_KEY` missing → warn, no fetch.
+  - Slack transient 5xx → retried with exponential backoff (250ms, 500ms, 1s; jittered off in tests via injected sleep), succeeds on retry 3.
+  - Slack persistent 5xx → after N retries logs error, still exits 0 (never breaks the gate job).
+  - Resend 4xx → logged, no retry, exits 0.
+- Add small `withRetry(fn, { attempts, sleep })` helper in the same file; inject `sleep` for test speed.
+- Wire `test:notify-security` in `package.json` + `test:all`.
 
-- **Replay by nonce**: POST a valid signed payload → 200. Re-POST the exact same body/signature → expect 409 `replay`. Query `security_sync_attempts` and assert two rows: first `status='accepted'` with the nonce persisted; second `status='replay'` with `nonce=null` (per current writer) and `error` containing `duplicate nonce`.
-- **Stale timestamp**: POST with `issued_at` set to `now - 10min` (outside `REPLAY_WINDOW_MS`) → 400 `invalid_payload: stale issued_at`. Assert an attempt row exists with `status='invalid_payload'`, `signature_valid=true`, and the submitted nonce recorded.
-- **Future timestamp**: `now + 10min` → same 400 + attempt row.
-- **Signature failure logging** (already partly covered — tighten): assert `status='invalid_signature'`, `signature_valid=false`, `nonce=null`, and that **no `security_findings` upsert** occurred (query count before/after).
-- Uses existing service-role client fixtures; cleans up inserted attempts by nonce/source_ip prefix at teardown.
+## 3. Richer security-scan gate annotations & PR comment
 
-### 3. CSV/JSON export for `security_finding_audit` page
+Edit `scripts/ci/security-gate.ts`:
+- Add `report_url` and `artifact_url` fields to the JSON payload (`SECURITY_GATE_OUTPUT`).
+  - `report_url` = `${RUN_URL}#summary` (job summary anchor).
+  - `artifact_url` derived from `GITHUB_SERVER_URL/REPO/actions/runs/<id>/artifacts` (best-effort; kept null when unavailable).
+- In each `::error` annotation, append `— details: <run_url>` so clicking the annotation deep-links to the run.
+- Extend the markdown job summary: each row's `Internal ID` cell becomes a link to `#user-content-<internal_id>`, and add per-finding anchor sections below the table with the scanner name, status, and last-seen timestamp so anchors resolve.
 
-The audit page currently renders read-only. Bring it to parity with other admin history panels:
+Edit `.github/workflows/security-scan.yml`:
+- Add a step (only on `pull_request`) that reads the JSON payload and posts / updates a sticky PR comment via `actions/github-script` containing the same table + the run + artifact links. Idempotent via a marker comment (`<!-- security-gate:comment -->`).
+- Upload `/tmp/security-gate.json` as a workflow artifact so `artifact_url` resolves.
 
-- Reuse `src/components/admin/HistoryFilters.tsx` (search/from/to/status) and `paginate` / `Pager` helpers.
-- Status options: `fixed | ignored | reintroduced`.
-- Searchable text: `internal_id`, `scanner_name`, `notes`, joined `affected_endpoints`, joined `affected_queries`.
-- CSV columns via `ExportColumn<T>[]` from `src/lib/exports.ts`: `created_at, internal_id, scanner_name, resolution, resolved_by, affected_endpoints (semicolon-joined), affected_queries (semicolon-joined), notes`.
-- JSON export = raw filtered rows (unpaged).
-- Server function `listSecurityFindingAudit` (in `src/lib/security.functions.ts`) returns up to 1000 rows, admin-gated via `has_role`. Filtering/pagination happens client-side against that page like other panels — matches the requeue-log parity test pattern so a follow-up parity test is trivial.
+Edit `scripts/ci/notify-security.ts` (Slack/email): include `report_url` and `artifact_url` in the Block Kit context and email footer.
 
-### 4. Database indexes for hot query paths
+## 4. Aggregated metrics for `security_sync_attempts`
 
-Single migration adding indexes that back the rate-limit lookup, replay detection, and export queries.
+Migration `security_sync_metrics_view`:
 
-```text
-security_sync_attempts:
-  idx_ssa_source_ip_received_at   (source_ip, received_at DESC)   -- rate-limit window scan
-  idx_ssa_received_at             (received_at DESC)              -- admin list + export ORDER BY
-  idx_ssa_status_received_at      (status, received_at DESC)      -- status filter
-  -- nonce already has UNIQUE index (replay); no change
+```sql
+CREATE OR REPLACE VIEW public.security_sync_metrics_daily AS
+SELECT
+  date_trunc('day', received_at) AS day,
+  status,
+  count(*)::int AS count,
+  sum(payload_bytes)::bigint AS bytes,
+  avg(duration_ms)::int AS avg_duration_ms,
+  max(received_at) AS last_seen
+FROM public.security_sync_attempts
+GROUP BY 1, 2;
 
-chw_requeue_log:
-  idx_crl_created_at              (created_at DESC)               -- default list order + export
-  idx_crl_assignment_id           (assignment_id)                 -- per-assignment history
-  idx_crl_actor_id_created_at     (actor_id, created_at DESC)     -- "my requeues" scope
-  idx_crl_outcome_created_at      (outcome, created_at DESC)      -- failed-only filters
+REVOKE ALL ON public.security_sync_metrics_daily FROM PUBLIC;
+GRANT SELECT ON public.security_sync_metrics_daily TO service_role;
 ```
 
-All `CREATE INDEX IF NOT EXISTS` (idempotent, safe re-run). No RLS or grant changes.
+Reads stay admin-only via server fn.
 
----
+New server fn in `src/lib/security.functions.ts`: `getSecuritySyncMetrics` — admin-gated, returns:
+- 24h counters (per status)
+- 7d rolling counters (per status)
+- daily buckets for the last 14 days (chart data)
+- top 5 source IPs by attempt count in last 24h
 
-## Technical notes
-
-- No new secrets are required unless the user wires Slack/email — those steps auto-skip when their secrets are absent (same pattern as `security-gate.ts`).
-- The audit-page server fn reuses the existing `has_role` admin check and `supabaseAdmin` inside the handler (per server-side rules).
-- Indexes are additive; existing queries in `src/routes/api/public/security-sync.ts` (the `count(*) where source_ip=? and received_at>=?` lookup) will pick up `idx_ssa_source_ip_received_at` automatically.
-
-## Out of scope (blueprint follow-ups)
-
-The ApexCare blueprint (AI scribe, WebRTC telemedicine, blockchain audit trail, WebAuthn, omnichannel booking, predictive no-show model, etc.) is much larger than this turn. I'll treat it as a backlog and can plan phase 1 (e.g. WebAuthn on admin routes, or the predictive no-show pipeline) as a separate dedicated plan when you're ready — trying to fold any of it into this turn would bury the four items you asked for.
+Edit `src/routes/app.admin.security-sync.tsx`:
+- New "Metrics" section at the top: 4 stat tiles (accepted, rate_limited, replay, invalid_signature) with 24h vs 7d delta.
+- A 14-day sparkline (SVG, no new deps) per non-accepted status stacked below.
+- Top offender IPs table (already in scope of admin visibility per accepted-risks doc).
+- Existing table + filters stay unchanged.
 
 ## Files touched
 
-- Edit: `.github/workflows/security-scan.yml`, `scripts/ci/security-gate.ts`, `tests/security/security-sync.test.ts`, `src/routes/app.admin.security-audit.tsx` (or equivalent audit page), `src/lib/security.functions.ts`
-- Create: `scripts/ci/notify-security.ts`, `supabase/migrations/<ts>_hot_path_indexes.sql`
+**New**
+- `tests/security/audit-export-parity.test.ts`
+- `tests/security/notify-security.test.ts`
+- `src/lib/security-audit-export.ts`
+
+**Edited**
+- `scripts/ci/security-gate.ts` (report/artifact URLs, anchored summary)
+- `scripts/ci/notify-security.ts` (extract `runNotify`, retries, link fields)
+- `.github/workflows/security-scan.yml` (PR comment step, artifact upload)
+- `src/lib/security.functions.ts` (add `getSecuritySyncMetrics`)
+- `src/routes/app.admin.security-sync.tsx` (metrics panel)
+- `src/routes/app.admin.security-audit.tsx` (import shared export config)
+- `package.json` (new test scripts)
+
+**Migration**
+- Create `security_sync_metrics_daily` view + grants.
+
+## Out of scope
+
+- The CHW/SMS/booking-modal advice pasted in the message — those flows were already fixed in prior turns (validated phone input, timeout-guarded AI pre-summary, unblocked booking button, single `QueryClientProvider` in `src/router.tsx`). Re-doing them would regress current code. If any of those still repro in your preview, tell me which one and I'll open a targeted follow-up plan.
+- New auth/CSRF work — already in place.
