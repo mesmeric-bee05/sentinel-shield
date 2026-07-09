@@ -64,16 +64,8 @@ function SecurityAuditPage() {
   );
   const { slice, total, pages } = paginate(filtered, page, 25);
 
-  const exportCols = [
-    { key: "created_at", label: "Recorded at", value: (r: SecurityFindingAuditRow) => r.created_at },
-    { key: "resolution", label: "Resolution", value: (r: SecurityFindingAuditRow) => r.resolution },
-    { key: "internal_id", label: "Internal ID", value: (r: SecurityFindingAuditRow) => r.internal_id },
-    { key: "scanner_name", label: "Scanner", value: (r: SecurityFindingAuditRow) => r.scanner_name },
-    { key: "resolved_by", label: "Resolved by", value: (r: SecurityFindingAuditRow) => r.resolved_by ?? "" },
-    { key: "affected_endpoints", label: "Affected endpoints", value: (r: SecurityFindingAuditRow) => (r.affected_endpoints ?? []).join("; ") },
-    { key: "affected_queries", label: "Affected queries", value: (r: SecurityFindingAuditRow) => (r.affected_queries ?? []).join("; ") },
-    { key: "notes", label: "Notes", value: (r: SecurityFindingAuditRow) => r.notes ?? "" },
-  ];
+  const exportCols = securityAuditExportCols;
+
 
   if (forbidden) return <div className="p-10"><PermissionDeniedCard info={forbidden} onRetry={load} /></div>;
 
