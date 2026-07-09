@@ -179,6 +179,66 @@ function SecuritySyncPage() {
   );
 }
 
+function MetricsPanel({ metrics, topIps }: { metrics: SecuritySyncDailyMetric[]; topIps: { source_ip: string; count: number }[] }) {
+  // Roll up by day into an accepted / non-accepted split so the panel gives
+  // admins a quick "healthy?" read without opening the table.
+  const byDay = new Map<string, { accepted: number; other: number }>();
+  for (const m of metrics) {
+    const key = m.day.slice(0, 10);
+    const row = byDay.get(key) ?? { accepted: 0, other: 0 };
+    if (m.status === "accepted") row.accepted += m.count;
+    else row.other += m.count;
+    byDay.set(key, row);
+  }
+  const days = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 14);
+  const maxTotal = Math.max(1, ...days.map(([, v]) => v.accepted + v.other));
+
+  if (metrics.length === 0 && topIps.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-card p-4 mb-6 grid md:grid-cols-3 gap-4">
+      <div className="md:col-span-2">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Last 14 days — accepted vs failed</div>
+        {days.length === 0 ? (
+          <div className="text-xs text-muted-foreground">No attempts in window.</div>
+        ) : (
+          <div className="flex items-end gap-1 h-24">
+            {days.slice().reverse().map(([day, v]) => {
+              const total = v.accepted + v.other;
+              const h = (total / maxTotal) * 100;
+              const okPct = total > 0 ? (v.accepted / total) * 100 : 0;
+              return (
+                <div key={day} className="flex-1 flex flex-col items-center gap-1" title={`${day}: ${v.accepted} accepted, ${v.other} failed`}>
+                  <div className="w-full bg-muted/30 rounded overflow-hidden flex flex-col justify-end" style={{ height: `${Math.max(4, h)}%` }}>
+                    <div className="bg-rose-500/70" style={{ height: `${100 - okPct}%` }} />
+                    <div className="bg-emerald-500/70" style={{ height: `${okPct}%` }} />
+                  </div>
+                  <div className="text-[9px] text-muted-foreground">{day.slice(5)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Top offender IPs (14d)</div>
+        {topIps.length === 0 ? (
+          <div className="text-xs text-muted-foreground">No failed attempts.</div>
+        ) : (
+          <ul className="text-xs space-y-1">
+            {topIps.slice(0, 5).map((ip) => (
+              <li key={ip.source_ip} className="flex justify-between font-mono">
+                <span className="truncate">{ip.source_ip}</span>
+                <span className="text-rose-700 ml-2">{ip.count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Stat({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: string }) {
   return (
     <div className={`rounded-xl border border-border p-4 ${tone}`}>
