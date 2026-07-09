@@ -44,7 +44,7 @@ function writeSummary(md: string) {
   }
 }
 
-function writeOutput(payload: { ok: boolean; open: OpenFinding[]; run_url: string | null }) {
+function writeOutput(payload: { ok: boolean; open: OpenFinding[]; run_url: string | null; artifact_url: string | null; report_url: string | null }) {
   try { writeFileSync(OUTPUT_PATH, JSON.stringify(payload, null, 2)); } catch { /* best effort */ }
 }
 
