@@ -5,7 +5,7 @@ import { CheckCircle2, AlertCircle, RefreshCw, Loader2, ShieldAlert, Clock, XCir
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { listSecuritySyncAttempts, type SecuritySyncAttempt } from "@/lib/security.functions";
+import { listSecuritySyncAttempts, getSecuritySyncMetrics, type SecuritySyncAttempt, type SecuritySyncDailyMetric } from "@/lib/security.functions";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
