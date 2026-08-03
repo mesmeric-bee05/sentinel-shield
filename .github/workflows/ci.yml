@@ -58,3 +58,9 @@ jobs:
       - name: Security-audit export parity (paged rows == exported rows)
         run: bun run test:audit-parity
 
+
+      - name: Security-sync metrics panel parity (rollup == server metrics)
+        run: bun run test:sync-metrics-parity
+
+      - name: Notifier retry/backoff unit tests
+        run: bun run test:notify-security

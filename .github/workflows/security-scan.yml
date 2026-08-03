@@ -50,6 +50,22 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+      # Regenerate the resolved-vs-remaining markdown report and publish it
+      # alongside the gate payload so reviewers can see the full picture.
+      - name: Export findings report
+        if: always()
+        run: bun run security-report
+
+      - name: Upload findings report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-findings-report
+          path: docs/security/findings-report.md
+          if-no-files-found: ignore
+          retention-days: 30
+
+
 
       # Upsert a single sticky PR comment on failure; delete it on recovery.
       - name: PR comment (reintroduced findings)

@@ -10,6 +10,7 @@ import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
 import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
+import { rollupByDay } from "@/lib/security-sync-metrics";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/security-sync")({
@@ -182,16 +183,13 @@ function SecuritySyncPage() {
 function MetricsPanel({ metrics, topIps }: { metrics: SecuritySyncDailyMetric[]; topIps: { source_ip: string; count: number }[] }) {
   // Roll up by day into an accepted / non-accepted split so the panel gives
   // admins a quick "healthy?" read without opening the table.
-  const byDay = new Map<string, { accepted: number; other: number }>();
-  for (const m of metrics) {
-    const key = m.day.slice(0, 10);
-    const row = byDay.get(key) ?? { accepted: 0, other: 0 };
-    if (m.status === "accepted") row.accepted += m.count;
-    else row.other += m.count;
-    byDay.set(key, row);
-  }
-  const days = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 14);
-  const maxTotal = Math.max(1, ...days.map(([, v]) => v.accepted + v.other));
+  // Roll up by day into an accepted / non-accepted split so the panel gives
+  // admins a quick "healthy?" read without opening the table. Shared helper so
+  // the parity test asserts the exact numbers rendered here.
+  const rollup = rollupByDay(metrics, 14);
+  const days: [string, { accepted: number; other: number }][] = rollup.map((r) => [r.day, { accepted: r.accepted, other: r.other }]);
+  const maxTotal = Math.max(1, ...rollup.map((r) => r.total));
+
 
   if (metrics.length === 0 && topIps.length === 0) return null;
 

@@ -179,6 +179,55 @@ try {
     cacheIds.push(data.id);
     ok("service_role can INSERT travel_time_cache (write path intact)");
   });
+
+  // ---------- security_sync_metrics_daily view (security_invoker = on) ----------
+  await run("anon cannot read security_sync_metrics_daily", async () => {
+    const { data, error } = await anon.from("security_sync_metrics_daily" as never).select("day").limit(1);
+    if (!error && data && data.length > 0) return bad("anon cannot read security_sync_metrics_daily", "rows visible to anon");
+    ok("anon cannot read security_sync_metrics_daily");
+  });
+
+  await run("authenticated non-admin cannot read security_sync_metrics_daily", async () => {
+    const { data, error } = await patientSess.client.from("security_sync_metrics_daily" as never).select("day").limit(1);
+    if (!error && data && data.length > 0) return bad("authenticated non-admin cannot read security_sync_metrics_daily", "rows visible to patient");
+    ok("authenticated non-admin cannot read security_sync_metrics_daily");
+  });
+
+  await run("service_role CAN read security_sync_metrics_daily (admin panel path)", async () => {
+    const { error } = await admin.from("security_sync_metrics_daily" as never).select("day, status, count").limit(1);
+    if (error) return bad("service_role CAN read security_sync_metrics_daily (admin panel path)", error.message);
+    ok("service_role CAN read security_sync_metrics_daily (admin panel path)");
+  });
+
+  // ---------- log_security_fix execute grants ----------
+  await run("anon cannot EXECUTE log_security_fix", async () => {
+    const { error } = await anon.rpc("log_security_fix" as never, {
+      _internal_id: "scope-test", _scanner_name: "scope", _resolution: "fixed",
+      _affected_endpoints: [], _affected_queries: [], _notes: "should fail",
+    } as never);
+    if (!error) return bad("anon cannot EXECUTE log_security_fix", "call succeeded");
+    ok(`anon cannot EXECUTE log_security_fix (${error.code ?? "err"})`);
+  });
+
+  await run("authenticated non-admin is rejected by log_security_fix", async () => {
+    const { error } = await patientSess.client.rpc("log_security_fix" as never, {
+      _internal_id: "scope-test", _scanner_name: "scope", _resolution: "fixed",
+      _affected_endpoints: [], _affected_queries: [], _notes: "should fail",
+    } as never);
+    if (!error) return bad("authenticated non-admin is rejected by log_security_fix", "call succeeded");
+    ok("authenticated non-admin is rejected by log_security_fix (forbidden)");
+  });
+
+  await run("admin CAN log a security fix", async () => {
+    const internalId = `scope-regression-${Date.now()}`;
+    const { data, error } = await adminSess.client.rpc("log_security_fix" as never, {
+      _internal_id: internalId, _scanner_name: "scope_regression", _resolution: "fixed",
+      _affected_endpoints: ["/app/admin/security"], _affected_queries: ["select 1"], _notes: "scope regression probe",
+    } as never);
+    if (error) return bad("admin CAN log a security fix", error.message);
+    if (data) await admin.from("security_finding_audit").delete().eq("id", data as unknown as string);
+    ok("admin CAN log a security fix");
+  });
 } finally {
   if (cacheIds.length) await admin.from("travel_time_cache").delete().in("id", cacheIds);
   if (availabilityIds.length) await admin.from("provider_availability").delete().in("id", availabilityIds);
