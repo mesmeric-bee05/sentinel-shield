@@ -9,74 +9,44 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as SecurityRouteImport } from './routes/security'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as ForProvidersRouteImport } from './routes/for-providers'
-import { Route as ContactRouteImport } from './routes/contact'
-import { Route as AppRouteImport } from './routes/app'
-import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ForProvidersRouteImport } from './routes/for-providers'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SecurityRouteImport } from './routes/security'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AppIndexRouteImport } from './routes/app.index'
-import { Route as AppProviderRouteImport } from './routes/app.provider'
-import { Route as AppDiscoverRouteImport } from './routes/app.discover'
-import { Route as AppChwRouteImport } from './routes/app.chw'
-import { Route as AppBootstrapRouteImport } from './routes/app.bootstrap'
-import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
 import { Route as AppAdminRouteImport } from './routes/app.admin'
-import { Route as AppRoomAppointmentIdRouteImport } from './routes/app.room.$appointmentId'
-import { Route as AppAdminSeoAuditRouteImport } from './routes/app.admin.seo-audit'
-import { Route as AppAdminSecuritySyncRouteImport } from './routes/app.admin.security-sync'
-import { Route as AppAdminSecurityAuditRouteImport } from './routes/app.admin.security-audit'
-import { Route as AppAdminSecurityRouteImport } from './routes/app.admin.security'
-import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
-import { Route as AppAdminNotificationsRouteImport } from './routes/app.admin.notifications'
-import { Route as AppAdminGeoRouteImport } from './routes/app.admin.geo'
-import { Route as AppAdminEmailPreviewRouteImport } from './routes/app.admin.email-preview'
-import { Route as AppAdminEmailHealthRouteImport } from './routes/app.admin.email-health'
-import { Route as AppAdminEmailDomainRouteImport } from './routes/app.admin.email-domain'
-import { Route as AppAdminChwQueueRouteImport } from './routes/app.admin.chw-queue'
-import { Route as AppAdminChwRouteImport } from './routes/app.admin.chw'
-import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
+import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
+import { Route as AppBootstrapRouteImport } from './routes/app.bootstrap'
+import { Route as AppChwRouteImport } from './routes/app.chw'
+import { Route as AppDiscoverRouteImport } from './routes/app.discover'
+import { Route as AppProviderRouteImport } from './routes/app.provider'
 import { Route as ApiPublicSecuritySyncRouteImport } from './routes/api/public/security-sync'
-import { Route as AppAdminTestSmsRouteImport } from './routes/app.admin.test.sms'
-import { Route as AppAdminSeoGscRouteImport } from './routes/app.admin.seo.gsc'
+import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
+import { Route as AppAdminChwRouteImport } from './routes/app.admin.chw'
+import { Route as AppAdminChwQueueRouteImport } from './routes/app.admin.chw-queue'
+import { Route as AppAdminEmailDomainRouteImport } from './routes/app.admin.email-domain'
+import { Route as AppAdminEmailHealthRouteImport } from './routes/app.admin.email-health'
+import { Route as AppAdminEmailPreviewRouteImport } from './routes/app.admin.email-preview'
+import { Route as AppAdminGeoRouteImport } from './routes/app.admin.geo'
+import { Route as AppAdminNotificationsRouteImport } from './routes/app.admin.notifications'
+import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
+import { Route as AppAdminSecurityRouteImport } from './routes/app.admin.security'
+import { Route as AppAdminSecurityAuditRouteImport } from './routes/app.admin.security-audit'
+import { Route as AppAdminSecuritySyncRouteImport } from './routes/app.admin.security-sync'
+import { Route as AppAdminSeoAuditRouteImport } from './routes/app.admin.seo-audit'
+import { Route as AppRoomAppointmentIdRouteImport } from './routes/app.room.$appointmentId'
 import { Route as AppAdminNotificationsResendRouteImport } from './routes/app.admin.notifications.resend'
+import { Route as AppAdminSeoGscRouteImport } from './routes/app.admin.seo.gsc'
+import { Route as AppAdminTestSmsRouteImport } from './routes/app.admin.test.sms'
 
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SecurityRoute = SecurityRouteImport.update({
-  id: '/security',
-  path: '/security',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForProvidersRoute = ForProvidersRouteImport.update({
-  id: '/for-providers',
-  path: '/for-providers',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoute = AppRouteImport.update({
-  id: '/app',
-  path: '/app',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -84,9 +54,39 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForProvidersRoute = ForProvidersRouteImport.update({
+  id: '/for-providers',
+  path: '/for-providers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SecurityRoute = SecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -94,24 +94,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProviderRoute = AppProviderRouteImport.update({
-  id: '/provider',
-  path: '/provider',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDiscoverRoute = AppDiscoverRouteImport.update({
-  id: '/discover',
-  path: '/discover',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppChwRoute = AppChwRouteImport.update({
-  id: '/chw',
-  path: '/chw',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBootstrapRoute = AppBootstrapRouteImport.update({
-  id: '/bootstrap',
-  path: '/bootstrap',
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAppointmentsRoute = AppAppointmentsRouteImport.update({
@@ -119,69 +104,34 @@ const AppAppointmentsRoute = AppAppointmentsRouteImport.update({
   path: '/appointments',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAdminRoute = AppAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AppBootstrapRoute = AppBootstrapRouteImport.update({
+  id: '/bootstrap',
+  path: '/bootstrap',
   getParentRoute: () => AppRoute,
 } as any)
-const AppRoomAppointmentIdRoute = AppRoomAppointmentIdRouteImport.update({
-  id: '/room/$appointmentId',
-  path: '/room/$appointmentId',
+const AppChwRoute = AppChwRouteImport.update({
+  id: '/chw',
+  path: '/chw',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAdminSeoAuditRoute = AppAdminSeoAuditRouteImport.update({
-  id: '/seo-audit',
-  path: '/seo-audit',
-  getParentRoute: () => AppAdminRoute,
+const AppDiscoverRoute = AppDiscoverRouteImport.update({
+  id: '/discover',
+  path: '/discover',
+  getParentRoute: () => AppRoute,
 } as any)
-const AppAdminSecuritySyncRoute = AppAdminSecuritySyncRouteImport.update({
-  id: '/security-sync',
-  path: '/security-sync',
-  getParentRoute: () => AppAdminRoute,
+const AppProviderRoute = AppProviderRouteImport.update({
+  id: '/provider',
+  path: '/provider',
+  getParentRoute: () => AppRoute,
 } as any)
-const AppAdminSecurityAuditRoute = AppAdminSecurityAuditRouteImport.update({
-  id: '/security-audit',
-  path: '/security-audit',
-  getParentRoute: () => AppAdminRoute,
+const ApiPublicSecuritySyncRoute = ApiPublicSecuritySyncRouteImport.update({
+  id: '/api/public/security-sync',
+  path: '/api/public/security-sync',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAdminSecurityRoute = AppAdminSecurityRouteImport.update({
-  id: '/security',
-  path: '/security',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminRolesRoute = AppAdminRolesRouteImport.update({
-  id: '/roles',
-  path: '/roles',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminNotificationsRoute = AppAdminNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminGeoRoute = AppAdminGeoRouteImport.update({
-  id: '/geo',
-  path: '/geo',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminEmailPreviewRoute = AppAdminEmailPreviewRouteImport.update({
-  id: '/email-preview',
-  path: '/email-preview',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminEmailHealthRoute = AppAdminEmailHealthRouteImport.update({
-  id: '/email-health',
-  path: '/email-health',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminEmailDomainRoute = AppAdminEmailDomainRouteImport.update({
-  id: '/email-domain',
-  path: '/email-domain',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminChwQueueRoute = AppAdminChwQueueRouteImport.update({
-  id: '/chw-queue',
-  path: '/chw-queue',
+const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminChwRoute = AppAdminChwRouteImport.update({
@@ -189,25 +139,65 @@ const AppAdminChwRoute = AppAdminChwRouteImport.update({
   path: '/chw',
   getParentRoute: () => AppAdminRoute,
 } as any)
-const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
+const AppAdminChwQueueRoute = AppAdminChwQueueRouteImport.update({
+  id: '/chw-queue',
+  path: '/chw-queue',
   getParentRoute: () => AppAdminRoute,
 } as any)
-const ApiPublicSecuritySyncRoute = ApiPublicSecuritySyncRouteImport.update({
-  id: '/api/public/security-sync',
-  path: '/api/public/security-sync',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppAdminTestSmsRoute = AppAdminTestSmsRouteImport.update({
-  id: '/test/sms',
-  path: '/test/sms',
+const AppAdminEmailDomainRoute = AppAdminEmailDomainRouteImport.update({
+  id: '/email-domain',
+  path: '/email-domain',
   getParentRoute: () => AppAdminRoute,
 } as any)
-const AppAdminSeoGscRoute = AppAdminSeoGscRouteImport.update({
-  id: '/seo/gsc',
-  path: '/seo/gsc',
+const AppAdminEmailHealthRoute = AppAdminEmailHealthRouteImport.update({
+  id: '/email-health',
+  path: '/email-health',
   getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminEmailPreviewRoute = AppAdminEmailPreviewRouteImport.update({
+  id: '/email-preview',
+  path: '/email-preview',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminGeoRoute = AppAdminGeoRouteImport.update({
+  id: '/geo',
+  path: '/geo',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminNotificationsRoute = AppAdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminRolesRoute = AppAdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSecurityRoute = AppAdminSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSecurityAuditRoute = AppAdminSecurityAuditRouteImport.update({
+  id: '/security-audit',
+  path: '/security-audit',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSecuritySyncRoute = AppAdminSecuritySyncRouteImport.update({
+  id: '/security-sync',
+  path: '/security-sync',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSeoAuditRoute = AppAdminSeoAuditRouteImport.update({
+  id: '/seo-audit',
+  path: '/seo-audit',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppRoomAppointmentIdRoute = AppRoomAppointmentIdRouteImport.update({
+  id: '/room/$appointmentId',
+  path: '/room/$appointmentId',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppAdminNotificationsResendRoute =
   AppAdminNotificationsResendRouteImport.update({
@@ -215,6 +205,16 @@ const AppAdminNotificationsResendRoute =
     path: '/resend',
     getParentRoute: () => AppAdminNotificationsRoute,
   } as any)
+const AppAdminSeoGscRoute = AppAdminSeoGscRouteImport.update({
+  id: '/seo/gsc',
+  path: '/seo/gsc',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTestSmsRoute = AppAdminTestSmsRouteImport.update({
+  id: '/test/sms',
+  path: '/test/sms',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -449,53 +449,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/security': {
-      id: '/security'
-      path: '/security'
-      fullPath: '/security'
-      preLoaderRoute: typeof SecurityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/for-providers': {
-      id: '/for-providers'
-      path: '/for-providers'
-      fullPath: '/for-providers'
-      preLoaderRoute: typeof ForProvidersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app': {
-      id: '/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AppRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -505,11 +463,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-providers': {
+      id: '/for-providers'
+      path: '/for-providers'
+      fullPath: '/for-providers'
+      preLoaderRoute: typeof ForProvidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/security': {
+      id: '/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof SecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -519,32 +519,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/provider': {
-      id: '/app/provider'
-      path: '/provider'
-      fullPath: '/app/provider'
-      preLoaderRoute: typeof AppProviderRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/discover': {
-      id: '/app/discover'
-      path: '/discover'
-      fullPath: '/app/discover'
-      preLoaderRoute: typeof AppDiscoverRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/chw': {
-      id: '/app/chw'
-      path: '/chw'
-      fullPath: '/app/chw'
-      preLoaderRoute: typeof AppChwRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bootstrap': {
-      id: '/app/bootstrap'
-      path: '/bootstrap'
-      fullPath: '/app/bootstrap'
-      preLoaderRoute: typeof AppBootstrapRouteImport
+    '/app/admin': {
+      id: '/app/admin'
+      path: '/admin'
+      fullPath: '/app/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/appointments': {
@@ -554,95 +533,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAppointmentsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/admin': {
-      id: '/app/admin'
-      path: '/admin'
-      fullPath: '/app/admin'
-      preLoaderRoute: typeof AppAdminRouteImport
+    '/app/bootstrap': {
+      id: '/app/bootstrap'
+      path: '/bootstrap'
+      fullPath: '/app/bootstrap'
+      preLoaderRoute: typeof AppBootstrapRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/room/$appointmentId': {
-      id: '/app/room/$appointmentId'
-      path: '/room/$appointmentId'
-      fullPath: '/app/room/$appointmentId'
-      preLoaderRoute: typeof AppRoomAppointmentIdRouteImport
+    '/app/chw': {
+      id: '/app/chw'
+      path: '/chw'
+      fullPath: '/app/chw'
+      preLoaderRoute: typeof AppChwRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/admin/seo-audit': {
-      id: '/app/admin/seo-audit'
-      path: '/seo-audit'
-      fullPath: '/app/admin/seo-audit'
-      preLoaderRoute: typeof AppAdminSeoAuditRouteImport
-      parentRoute: typeof AppAdminRoute
+    '/app/discover': {
+      id: '/app/discover'
+      path: '/discover'
+      fullPath: '/app/discover'
+      preLoaderRoute: typeof AppDiscoverRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/app/admin/security-sync': {
-      id: '/app/admin/security-sync'
-      path: '/security-sync'
-      fullPath: '/app/admin/security-sync'
-      preLoaderRoute: typeof AppAdminSecuritySyncRouteImport
-      parentRoute: typeof AppAdminRoute
+    '/app/provider': {
+      id: '/app/provider'
+      path: '/provider'
+      fullPath: '/app/provider'
+      preLoaderRoute: typeof AppProviderRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/app/admin/security-audit': {
-      id: '/app/admin/security-audit'
-      path: '/security-audit'
-      fullPath: '/app/admin/security-audit'
-      preLoaderRoute: typeof AppAdminSecurityAuditRouteImport
-      parentRoute: typeof AppAdminRoute
+    '/api/public/security-sync': {
+      id: '/api/public/security-sync'
+      path: '/api/public/security-sync'
+      fullPath: '/api/public/security-sync'
+      preLoaderRoute: typeof ApiPublicSecuritySyncRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/app/admin/security': {
-      id: '/app/admin/security'
-      path: '/security'
-      fullPath: '/app/admin/security'
-      preLoaderRoute: typeof AppAdminSecurityRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/app/admin/roles': {
-      id: '/app/admin/roles'
-      path: '/roles'
-      fullPath: '/app/admin/roles'
-      preLoaderRoute: typeof AppAdminRolesRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/app/admin/notifications': {
-      id: '/app/admin/notifications'
-      path: '/notifications'
-      fullPath: '/app/admin/notifications'
-      preLoaderRoute: typeof AppAdminNotificationsRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/app/admin/geo': {
-      id: '/app/admin/geo'
-      path: '/geo'
-      fullPath: '/app/admin/geo'
-      preLoaderRoute: typeof AppAdminGeoRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/app/admin/email-preview': {
-      id: '/app/admin/email-preview'
-      path: '/email-preview'
-      fullPath: '/app/admin/email-preview'
-      preLoaderRoute: typeof AppAdminEmailPreviewRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/app/admin/email-health': {
-      id: '/app/admin/email-health'
-      path: '/email-health'
-      fullPath: '/app/admin/email-health'
-      preLoaderRoute: typeof AppAdminEmailHealthRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/app/admin/email-domain': {
-      id: '/app/admin/email-domain'
-      path: '/email-domain'
-      fullPath: '/app/admin/email-domain'
-      preLoaderRoute: typeof AppAdminEmailDomainRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/app/admin/chw-queue': {
-      id: '/app/admin/chw-queue'
-      path: '/chw-queue'
-      fullPath: '/app/admin/chw-queue'
-      preLoaderRoute: typeof AppAdminChwQueueRouteImport
+    '/app/admin/audit': {
+      id: '/app/admin/audit'
+      path: '/audit'
+      fullPath: '/app/admin/audit'
+      preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/app/admin/chw': {
@@ -652,26 +582,96 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminChwRouteImport
       parentRoute: typeof AppAdminRoute
     }
-    '/app/admin/audit': {
-      id: '/app/admin/audit'
-      path: '/audit'
-      fullPath: '/app/admin/audit'
-      preLoaderRoute: typeof AppAdminAuditRouteImport
+    '/app/admin/chw-queue': {
+      id: '/app/admin/chw-queue'
+      path: '/chw-queue'
+      fullPath: '/app/admin/chw-queue'
+      preLoaderRoute: typeof AppAdminChwQueueRouteImport
       parentRoute: typeof AppAdminRoute
     }
-    '/api/public/security-sync': {
-      id: '/api/public/security-sync'
-      path: '/api/public/security-sync'
-      fullPath: '/api/public/security-sync'
-      preLoaderRoute: typeof ApiPublicSecuritySyncRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/admin/test/sms': {
-      id: '/app/admin/test/sms'
-      path: '/test/sms'
-      fullPath: '/app/admin/test/sms'
-      preLoaderRoute: typeof AppAdminTestSmsRouteImport
+    '/app/admin/email-domain': {
+      id: '/app/admin/email-domain'
+      path: '/email-domain'
+      fullPath: '/app/admin/email-domain'
+      preLoaderRoute: typeof AppAdminEmailDomainRouteImport
       parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/email-health': {
+      id: '/app/admin/email-health'
+      path: '/email-health'
+      fullPath: '/app/admin/email-health'
+      preLoaderRoute: typeof AppAdminEmailHealthRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/email-preview': {
+      id: '/app/admin/email-preview'
+      path: '/email-preview'
+      fullPath: '/app/admin/email-preview'
+      preLoaderRoute: typeof AppAdminEmailPreviewRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/geo': {
+      id: '/app/admin/geo'
+      path: '/geo'
+      fullPath: '/app/admin/geo'
+      preLoaderRoute: typeof AppAdminGeoRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/notifications': {
+      id: '/app/admin/notifications'
+      path: '/notifications'
+      fullPath: '/app/admin/notifications'
+      preLoaderRoute: typeof AppAdminNotificationsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/roles': {
+      id: '/app/admin/roles'
+      path: '/roles'
+      fullPath: '/app/admin/roles'
+      preLoaderRoute: typeof AppAdminRolesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/security': {
+      id: '/app/admin/security'
+      path: '/security'
+      fullPath: '/app/admin/security'
+      preLoaderRoute: typeof AppAdminSecurityRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/security-audit': {
+      id: '/app/admin/security-audit'
+      path: '/security-audit'
+      fullPath: '/app/admin/security-audit'
+      preLoaderRoute: typeof AppAdminSecurityAuditRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/security-sync': {
+      id: '/app/admin/security-sync'
+      path: '/security-sync'
+      fullPath: '/app/admin/security-sync'
+      preLoaderRoute: typeof AppAdminSecuritySyncRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/admin/seo-audit': {
+      id: '/app/admin/seo-audit'
+      path: '/seo-audit'
+      fullPath: '/app/admin/seo-audit'
+      preLoaderRoute: typeof AppAdminSeoAuditRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/app/room/$appointmentId': {
+      id: '/app/room/$appointmentId'
+      path: '/room/$appointmentId'
+      fullPath: '/app/room/$appointmentId'
+      preLoaderRoute: typeof AppRoomAppointmentIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/admin/notifications/resend': {
+      id: '/app/admin/notifications/resend'
+      path: '/resend'
+      fullPath: '/app/admin/notifications/resend'
+      preLoaderRoute: typeof AppAdminNotificationsResendRouteImport
+      parentRoute: typeof AppAdminNotificationsRoute
     }
     '/app/admin/seo/gsc': {
       id: '/app/admin/seo/gsc'
@@ -680,12 +680,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminSeoGscRouteImport
       parentRoute: typeof AppAdminRoute
     }
-    '/app/admin/notifications/resend': {
-      id: '/app/admin/notifications/resend'
-      path: '/resend'
-      fullPath: '/app/admin/notifications/resend'
-      preLoaderRoute: typeof AppAdminNotificationsResendRouteImport
-      parentRoute: typeof AppAdminNotificationsRoute
+    '/app/admin/test/sms': {
+      id: '/app/admin/test/sms'
+      path: '/test/sms'
+      fullPath: '/app/admin/test/sms'
+      preLoaderRoute: typeof AppAdminTestSmsRouteImport
+      parentRoute: typeof AppAdminRoute
     }
   }
 }
