@@ -17,8 +17,11 @@
     "test:requeue-parity": "bun run tests/security/requeue-log-parity.test.ts",
     "test:chw-requeue-e2e": "bun run tests/security/chw-requeue-e2e.test.ts",
     "test:audit-parity": "bun run tests/security/security-audit-parity.test.ts",
-    "test:all": "bun run test:security && bun run test:rls-regression && bun run test:security-sync && bun run test:scope-regression && bun run test:requeue-parity && bun run test:chw-requeue-e2e && bun run test:audit-parity",
-    "security-gate": "bun run scripts/ci/security-gate.ts"
+    "test:sync-metrics-parity": "bun run tests/security/security-sync-metrics-parity.test.ts",
+    "test:notify-security": "bun run tests/security/notify-security.test.ts",
+    "test:all": "bun run test:security && bun run test:rls-regression && bun run test:security-sync && bun run test:scope-regression && bun run test:requeue-parity && bun run test:chw-requeue-e2e && bun run test:audit-parity && bun run test:sync-metrics-parity && bun run test:notify-security",
+    "security-gate": "bun run scripts/ci/security-gate.ts",
+    "security-report": "bun run scripts/ci/export-findings-report.ts"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

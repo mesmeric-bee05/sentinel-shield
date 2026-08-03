@@ -92,6 +92,42 @@ try {
   // Sanity: filter actually narrows the seeded set.
   if (filtered.length > 0 && filtered.length < rows.length) ok(`filter applied — ${filtered.length}/${rows.length} rows`);
   else bad("filter narrowing", `filtered=${filtered.length} total=${rows.length}`);
+
+  // ---------- Edge case: empty result set ----------
+  const emptyFiltered = applyHistoryFilter(rows, { ...emptyFilters, q: "no-such-token-zzz-∅" }, {
+    date: (r) => r.created_at,
+    status: (r) => r.resolution,
+    searchable: (r) => `${r.internal_id} ${r.scanner_name}`,
+  });
+  const emptyPage = paginate(emptyFiltered, 1, pageSize);
+  const emptyCsv = toCsv(emptyFiltered, securityAuditExportCols);
+  if (emptyFiltered.length === 0) ok("empty filter result — no rows");
+  else bad("empty filter result", `got ${emptyFiltered.length}`);
+  if (emptyPage.slice.length === 0 && emptyPage.total === 0) ok("empty result paginates to an empty page (total=0)");
+  else bad("empty result pagination", JSON.stringify({ len: emptyPage.slice.length, total: emptyPage.total }));
+  if (emptyCsv === toCsv([] as SecurityFindingAuditRow[], securityAuditExportCols)) ok("empty CSV export is header-only and stable");
+  else bad("empty CSV export", `bytes=${emptyCsv.length}`);
+  if (JSON.stringify(emptyFiltered, null, 2) === JSON.stringify([], null, 2)) ok("empty JSON export is []");
+  else bad("empty JSON export");
+
+  // ---------- Edge case: last page (partial slice) ----------
+  const lastPage = paginate(filtered, pageCount, pageSize);
+  const expectedLastLen = filtered.length === 0 ? 0 : filtered.length - (pageCount - 1) * pageSize;
+  if (lastPage.slice.length === expectedLastLen) ok(`last page holds the remainder (${lastPage.slice.length} row(s))`);
+  else bad("last page remainder", `got=${lastPage.slice.length} expected=${expectedLastLen}`);
+  if (lastPage.total === filtered.length && lastPage.pages === pageCount) ok("last page reports correct total/pages");
+  else bad("last page totals", JSON.stringify({ total: lastPage.total, pages: lastPage.pages }));
+  if (filtered.length > 0 && lastPage.slice.at(-1) === filtered.at(-1)) ok("last page ends on the final filtered row");
+  else bad("last page final row");
+  const lastCsv = toCsv(lastPage.slice, securityAuditExportCols);
+  const tailCsv = toCsv(filtered.slice((pageCount - 1) * pageSize), securityAuditExportCols);
+  if (lastCsv === tailCsv) ok("last-page CSV equals the exported tail byte-for-byte");
+  else bad("last-page CSV parity");
+
+  // ---------- Edge case: page past the end ----------
+  const overrun = paginate(filtered, pageCount + 3, pageSize);
+  if (JSON.stringify(overrun.slice) === JSON.stringify(lastPage.slice) && overrun.total === filtered.length) ok("page beyond the last clamps to the final page");
+  else bad("overrun page clamping", `len=${overrun.slice.length}`);
 } catch (e) {
   bad("parity computation", e instanceof Error ? e.message : String(e));
 }

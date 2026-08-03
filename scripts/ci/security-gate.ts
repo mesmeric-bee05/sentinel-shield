@@ -16,6 +16,10 @@ const PINNED = [
   "seo_settings_unauthed",
   "provider_availability_public_read",
   "travel_time_cache_broad_authenticated_read",
+  "SUPA_security_definer_view",
+  "SUPA_anon_security_definer_function_executable",
+  "vulnerable_dependencies_critical",
+  "room_event_no_authz",
 ] as const;
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;

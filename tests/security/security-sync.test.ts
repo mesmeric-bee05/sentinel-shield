@@ -300,6 +300,64 @@ try {
     ok("oversized body → 413 payload_too_large, attempt row logged");
   });
 
+  // ---------- Legitimate large sync (just under the cap) still succeeds ----------
+  await run("large but legal body (<16KB, many findings) → 200 accepted", async () => {
+    const nonce = `t-bulk-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    nonces.push(nonce);
+    // ~60 findings keeps the payload comfortably under the 16 KB cap while
+    // representing a realistic full-scan sync.
+    const findings = Array.from({ length: 60 }).map((_, i) => ({
+      scanner_name: SCANNER,
+      internal_id: `${nonce}-f${i}`,
+      title: `bulk finding ${i}`,
+      severity: "info",
+      status: "open",
+    }));
+    const body = JSON.stringify({ nonce, issued_at: new Date().toISOString(), findings });
+    if (body.length >= 16_384) return bad("large but legal body (<16KB, many findings) → 200 accepted", `test body too big: ${body.length}`);
+    const req = new Request("http://localhost/api/public/security-sync", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-signature": sign(body),
+        "x-forwarded-for": `10.77.${Math.floor(Math.random() * 250)}.9`,
+        "content-length": String(body.length),
+      },
+      body,
+    });
+    const res = await handler({ request: req });
+    if (res.status !== 200) return bad("large but legal body (<16KB, many findings) → 200 accepted", `status=${res.status}`);
+    const { data } = await admin
+      .from("security_sync_attempts" as never)
+      .select("status, finding_count, payload_bytes")
+      .eq("nonce", nonce)
+      .limit(1);
+    const row = ((data ?? []) as { status: string; finding_count: number | null; payload_bytes: number | null }[])[0];
+    if (!row || row.status !== "accepted") return bad("large but legal body (<16KB, many findings) → 200 accepted", `attempt row status=${row?.status}`);
+    if (row.finding_count !== findings.length) return bad("large but legal body (<16KB, many findings) → 200 accepted", `finding_count=${row.finding_count}`);
+    ok(`large but legal body (${body.length}B, ${findings.length} findings) → 200 accepted`);
+  });
+
+  // ---------- Rate limiter does not block a legitimate under-limit burst ----------
+  await run("under-limit burst from one IP all succeed", async () => {
+    const ip = `10.66.${Math.floor(Math.random() * 250)}.5`;
+    for (let i = 0; i < 5; i++) {
+      const nonce = `t-burst-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`;
+      nonces.push(nonce);
+      const body = makeBody(nonce);
+      const res = await handler({
+        request: new Request("http://localhost/api/public/security-sync", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-signature": sign(body), "x-forwarded-for": ip },
+          body,
+        }),
+      });
+      if (res.status !== 200) return bad("under-limit burst from one IP all succeed", `request ${i + 1} status=${res.status}`);
+    }
+    ok("under-limit burst from one IP all succeed (5/5 accepted)");
+  });
+
+
   // ---------- Per-IP rate limit ----------
   await run("31st request in <60s from same IP → 429 rate_limited", async () => {
     const ip = `10.99.${Math.floor(Math.random() * 200) + 1}.${Math.floor(Math.random() * 200) + 1}`;

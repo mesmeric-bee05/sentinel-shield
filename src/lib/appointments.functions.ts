@@ -112,12 +112,42 @@ export const saveScribeNote = createServerFn({ method: "POST" })
     return { ok: true, error: null as string | null };
   });
 
+// Telemedicine room audit trail. The caller MUST be a participant of the
+// appointment — otherwise any signed-in user could forge join/leave records
+// for arbitrary appointment IDs and corrupt the compliance log.
 export const logRoomEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ appointmentId: z.string().uuid(), event: z.enum(["join", "leave"]) }).parse(d))
   .handler(async ({ data, context }) => {
-    await supabaseAdmin.from("audit_events").insert({ actor_id: context.userId, action: `room.${data.event}`, entity: "appointments", entity_id: data.appointmentId, meta: {} });
-    return { ok: true };
+    // RLS-scoped read: only the patient or the assigned provider can see the row.
+    const { data: appt } = await context.supabase
+      .from("appointments")
+      .select("id, patient_id, provider_id")
+      .eq("id", data.appointmentId)
+      .maybeSingle();
+    if (!appt) return { ok: false as const, error: "Forbidden" as const };
+
+    let role: "patient" | "provider" | null = appt.patient_id === context.userId ? "patient" : null;
+    if (!role) {
+      // Provider participation is proven by owning the provider record.
+      const { data: prov } = await context.supabase
+        .from("providers")
+        .select("id")
+        .eq("id", appt.provider_id)
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      if (prov) role = "provider";
+    }
+    if (!role) return { ok: false as const, error: "Forbidden" as const };
+
+    await supabaseAdmin.from("audit_events").insert({
+      actor_id: context.userId,
+      action: `room.${data.event}`,
+      entity: "appointments",
+      entity_id: data.appointmentId,
+      meta: { role },
+    });
+    return { ok: true as const, error: null as string | null };
   });
 
 // ---------- Notifications (server-only helpers) ----------
