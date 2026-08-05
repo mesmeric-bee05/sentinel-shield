@@ -63,7 +63,7 @@ function ScanDiffPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const raw = await diffFn({ data: {} });
+      const raw = await diffFn({ data: undefined });
       const denial = reasonFromResult(raw);
       if (denial) { setForbidden(denial); setLoading(false); return; }
       setForbidden(null);

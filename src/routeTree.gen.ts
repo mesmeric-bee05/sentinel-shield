@@ -37,6 +37,7 @@ import { Route as AppAdminNotificationsRouteImport } from './routes/app.admin.no
 import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
 import { Route as AppAdminSecurityRouteImport } from './routes/app.admin.security'
 import { Route as AppAdminSecurityAuditRouteImport } from './routes/app.admin.security-audit'
+import { Route as AppAdminSecurityDiffRouteImport } from './routes/app.admin.security-diff'
 import { Route as AppAdminSecuritySyncRouteImport } from './routes/app.admin.security-sync'
 import { Route as AppAdminSeoAuditRouteImport } from './routes/app.admin.seo-audit'
 import { Route as AppRoomAppointmentIdRouteImport } from './routes/app.room.$appointmentId'
@@ -184,6 +185,11 @@ const AppAdminSecurityAuditRoute = AppAdminSecurityAuditRouteImport.update({
   path: '/security-audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminSecurityDiffRoute = AppAdminSecurityDiffRouteImport.update({
+  id: '/security-diff',
+  path: '/security-diff',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminSecuritySyncRoute = AppAdminSecuritySyncRouteImport.update({
   id: '/security-sync',
   path: '/security-sync',
@@ -245,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/security-audit': typeof AppAdminSecurityAuditRoute
+  '/app/admin/security-diff': typeof AppAdminSecurityDiffRoute
   '/app/admin/security-sync': typeof AppAdminSecuritySyncRoute
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
@@ -280,6 +287,7 @@ export interface FileRoutesByTo {
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/security-audit': typeof AppAdminSecurityAuditRoute
+  '/app/admin/security-diff': typeof AppAdminSecurityDiffRoute
   '/app/admin/security-sync': typeof AppAdminSecuritySyncRoute
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
@@ -317,6 +325,7 @@ export interface FileRoutesById {
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/security-audit': typeof AppAdminSecurityAuditRoute
+  '/app/admin/security-diff': typeof AppAdminSecurityDiffRoute
   '/app/admin/security-sync': typeof AppAdminSecuritySyncRoute
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
@@ -355,6 +364,7 @@ export interface FileRouteTypes {
     | '/app/admin/roles'
     | '/app/admin/security'
     | '/app/admin/security-audit'
+    | '/app/admin/security-diff'
     | '/app/admin/security-sync'
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
@@ -390,6 +400,7 @@ export interface FileRouteTypes {
     | '/app/admin/roles'
     | '/app/admin/security'
     | '/app/admin/security-audit'
+    | '/app/admin/security-diff'
     | '/app/admin/security-sync'
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
@@ -426,6 +437,7 @@ export interface FileRouteTypes {
     | '/app/admin/roles'
     | '/app/admin/security'
     | '/app/admin/security-audit'
+    | '/app/admin/security-diff'
     | '/app/admin/security-sync'
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
@@ -645,6 +657,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminSecurityAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/app/admin/security-diff': {
+      id: '/app/admin/security-diff'
+      path: '/security-diff'
+      fullPath: '/app/admin/security-diff'
+      preLoaderRoute: typeof AppAdminSecurityDiffRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/security-sync': {
       id: '/app/admin/security-sync'
       path: '/security-sync'
@@ -715,6 +734,7 @@ interface AppAdminRouteChildren {
   AppAdminRolesRoute: typeof AppAdminRolesRoute
   AppAdminSecurityRoute: typeof AppAdminSecurityRoute
   AppAdminSecurityAuditRoute: typeof AppAdminSecurityAuditRoute
+  AppAdminSecurityDiffRoute: typeof AppAdminSecurityDiffRoute
   AppAdminSecuritySyncRoute: typeof AppAdminSecuritySyncRoute
   AppAdminSeoAuditRoute: typeof AppAdminSeoAuditRoute
   AppAdminSeoGscRoute: typeof AppAdminSeoGscRoute
@@ -733,6 +753,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminRolesRoute: AppAdminRolesRoute,
   AppAdminSecurityRoute: AppAdminSecurityRoute,
   AppAdminSecurityAuditRoute: AppAdminSecurityAuditRoute,
+  AppAdminSecurityDiffRoute: AppAdminSecurityDiffRoute,
   AppAdminSecuritySyncRoute: AppAdminSecuritySyncRoute,
   AppAdminSeoAuditRoute: AppAdminSeoAuditRoute,
   AppAdminSeoGscRoute: AppAdminSeoGscRoute,
