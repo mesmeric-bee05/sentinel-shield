@@ -201,8 +201,9 @@ function forbiddenExport(page: number, pageSize: number) {
   return { error: "Forbidden" as const, rows: [] as never[], pagination: buildPagination(0, page, pageSize) };
 }
 
-async function assertAdmin(context: { supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> }; userId: string }) {
-  const { data } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+/** Resolve an admin-role check without coupling to the generated client's rpc overloads. */
+async function assertAdmin(call: () => PromiseLike<{ data: unknown }>): Promise<boolean> {
+  const { data } = await call();
   return data === true;
 }
 
@@ -217,7 +218,7 @@ export const exportSecurityFindings = createServerFn({ method: "POST" })
   .inputValidator((d) => ExportInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const t0 = Date.now();
-    if (!(await assertAdmin(context))) {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
       emitSecurityEventAsync({ event: "security.export.denied", severity: "warning", attrs: { dataset: "security_findings", user_id: context.userId } });
       return forbiddenExport(data.page, data.pageSize);
     }
@@ -251,7 +252,7 @@ export const exportSecurityFindingAudit = createServerFn({ method: "POST" })
   .inputValidator((d) => ExportInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const t0 = Date.now();
-    if (!(await assertAdmin(context))) {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
       emitSecurityEventAsync({ event: "security.export.denied", severity: "warning", attrs: { dataset: "security_finding_audit", user_id: context.userId } });
       return forbiddenExport(data.page, data.pageSize);
     }
@@ -285,7 +286,7 @@ export const exportSecuritySyncAttempts = createServerFn({ method: "POST" })
   .inputValidator((d) => ExportInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const t0 = Date.now();
-    if (!(await assertAdmin(context))) {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
       emitSecurityEventAsync({ event: "security.export.denied", severity: "warning", attrs: { dataset: "security_sync_attempts", user_id: context.userId } });
       return forbiddenExport(data.page, data.pageSize);
     }
@@ -329,7 +330,7 @@ export const getSecurityScanDiff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ScanDiffResponse> => {
     const empty = { latestScanAt: null, previousScanAt: null, resolved: [], remaining: [], newlyIntroduced: [], reports: [] };
-    if (!(await assertAdmin(context))) return { error: "Forbidden", ...empty };
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) return { error: "Forbidden", ...empty };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
