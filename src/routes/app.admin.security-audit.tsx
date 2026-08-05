@@ -67,6 +67,14 @@ function SecurityAuditPage() {
   const exportCols = securityAuditExportCols;
 
 
+  const runExport = async (format: "csv" | "json") => {
+    const outcome = await runServerExport({ fn: exportFn as never, filters, format, basename: "security-finding-audit", cols: exportCols });
+    if (!outcome.ok) {
+      if (outcome.denied) setForbidden(outcome.denied);
+      else toast.error(outcome.error ?? "Export failed");
+    }
+  };
+
   if (forbidden) return <div className="p-10"><PermissionDeniedCard info={forbidden} onRetry={load} /></div>;
 
   return (
@@ -94,8 +102,8 @@ function SecurityAuditPage() {
           { value: "reintroduced", label: "Reintroduced" },
         ]}
         searchPlaceholder="Internal ID, scanner, endpoint, query…"
-        onExportCsv={() => downloadCsv(timestampedName("security-finding-audit"), filtered, exportCols)}
-        onExportJson={() => downloadJson(timestampedName("security-finding-audit"), filtered)}
+        onExportCsv={() => void runExport("csv")}
+        onExportJson={() => void runExport("json")}
       />
 
       <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">

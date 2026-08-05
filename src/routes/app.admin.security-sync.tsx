@@ -95,6 +95,14 @@ function SecuritySyncPage() {
     { key: "error", label: "Error", value: (a: SecuritySyncAttempt) => a.error ?? "" },
   ];
 
+  const runExport = async (format: "csv" | "json") => {
+    const outcome = await runServerExport({ fn: exportFn as never, filters, format, basename: "security-sync-attempts", cols: exportCols });
+    if (!outcome.ok) {
+      if (outcome.denied) setForbidden(outcome.denied);
+      else toast.error(outcome.error ?? "Export failed");
+    }
+  };
+
   if (forbidden) return <div className="p-10"><PermissionDeniedCard info={forbidden} onRetry={load} /></div>;
 
   return (
@@ -132,8 +140,8 @@ function SecuritySyncPage() {
           { value: "disabled", label: "Disabled" },
         ]}
         searchPlaceholder="Nonce, IP, error…"
-        onExportCsv={() => downloadCsv(timestampedName("security-sync-attempts"), filtered, exportCols)}
-        onExportJson={() => downloadJson(timestampedName("security-sync-attempts"), filtered)}
+        onExportCsv={() => void runExport("csv")}
+        onExportJson={() => void runExport("json")}
       />
 
       <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">

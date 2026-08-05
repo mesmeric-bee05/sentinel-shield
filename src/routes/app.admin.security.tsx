@@ -5,7 +5,8 @@ import { ShieldCheck, CheckCircle2, AlertCircle, RefreshCw, Loader2, FileText } 
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { listSecurityFindings } from "@/lib/security.functions";
+import { listSecurityFindings, exportSecurityFindings } from "@/lib/security.functions";
+import { runServerExport } from "@/lib/security-export-client";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
@@ -47,6 +48,8 @@ const STATUS_TONE: Record<Finding["status"], string> = {
 
 function SecurityPage() {
   const listFn = useServerFn(listSecurityFindings);
+  const exportFn = useServerFn(exportSecurityFindings);
+  const [exporting, setExporting] = useState(false);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [counts, setCounts] = useState({ open: 0, fixed: 0, ignored: 0 });
   const [forbidden, setForbidden] = useState<ForbiddenInfo | null>(null);
@@ -92,6 +95,19 @@ function SecurityPage() {
     { key: "last_seen_at", label: "Last seen", value: (f: Finding) => f.last_seen_at },
   ];
 
+  // Downloads go through the RBAC-enforced server export endpoint, not the
+  // client-side list, so a non-admin can never produce a report file.
+  const runExport = async (format: "csv" | "json") => {
+    if (exporting) return;
+    setExporting(true);
+    const outcome = await runServerExport({ fn: exportFn as never, filters, format, basename: "security-findings", cols: exportCols });
+    setExporting(false);
+    if (!outcome.ok) {
+      if (outcome.denied) setForbidden(outcome.denied);
+      else toast.error(outcome.error ?? "Export failed");
+    }
+  };
+
   if (forbidden) return <div className="p-10"><PermissionDeniedCard info={forbidden} onRetry={load} /></div>;
 
   return (
@@ -121,8 +137,8 @@ function SecurityPage() {
           { value: "ignored", label: "Accepted risk" },
         ]}
         searchPlaceholder="Finding, resource, scanner…"
-        onExportCsv={() => downloadCsv(timestampedName("security-findings"), filtered, exportCols)}
-        onExportJson={() => downloadJson(timestampedName("security-findings"), filtered)}
+        onExportCsv={() => void runExport("csv")}
+        onExportJson={() => void runExport("json")}
       />
 
       <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">
