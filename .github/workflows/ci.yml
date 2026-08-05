@@ -64,3 +64,9 @@ jobs:
 
       - name: Notifier retry/backoff unit tests
         run: bun run test:notify-security
+
+      - name: Security API contracts (schemas + pagination metadata)
+        run: bun run test:metrics-contract
+
+      - name: Export endpoint RBAC regression
+        run: bun run test:export-rbac
