@@ -10,6 +10,7 @@ import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
 import { rollupByDay } from "@/lib/security-sync-metrics";
+import { runServerExport } from "@/lib/security-export-client";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/security-sync")({
