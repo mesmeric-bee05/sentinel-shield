@@ -5,11 +5,11 @@ import { ShieldCheck, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { listSecurityFindingAudit, type SecurityFindingAuditRow } from "@/lib/security.functions";
+import { listSecurityFindingAudit, exportSecurityFindingAudit, type SecurityFindingAuditRow } from "@/lib/security.functions";
+import { runServerExport } from "@/lib/security-export-client";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
-import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
 import { securityAuditExportCols } from "@/lib/security-audit-export";
 import { PageHeader } from "./app";
 
@@ -30,6 +30,7 @@ const RESOLUTION_TONE: Record<string, string> = {
 
 function SecurityAuditPage() {
   const listFn = useServerFn(listSecurityFindingAudit);
+  const exportFn = useServerFn(exportSecurityFindingAudit);
   const [rows, setRows] = useState<SecurityFindingAuditRow[]>([]);
   const [counts, setCounts] = useState({ fixed: 0, ignored: 0, reintroduced: 0 });
   const [forbidden, setForbidden] = useState<ForbiddenInfo | null>(null);

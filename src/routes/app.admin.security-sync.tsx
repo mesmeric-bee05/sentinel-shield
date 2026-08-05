@@ -5,11 +5,10 @@ import { CheckCircle2, AlertCircle, RefreshCw, Loader2, ShieldAlert, Clock, XCir
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { listSecuritySyncAttempts, getSecuritySyncMetrics, type SecuritySyncAttempt, type SecuritySyncDailyMetric } from "@/lib/security.functions";
+import { listSecuritySyncAttempts, getSecuritySyncMetrics, exportSecuritySyncAttempts, type SecuritySyncAttempt, type SecuritySyncDailyMetric } from "@/lib/security.functions";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
-import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
 import { rollupByDay } from "@/lib/security-sync-metrics";
 import { PageHeader } from "./app";
 
@@ -36,6 +35,7 @@ const STATUS_TONE: Record<SecuritySyncAttempt["status"], string> = {
 function SecuritySyncPage() {
   const listFn = useServerFn(listSecuritySyncAttempts);
   const metricsFn = useServerFn(getSecuritySyncMetrics);
+  const exportFn = useServerFn(exportSecuritySyncAttempts);
   const [attempts, setAttempts] = useState<SecuritySyncAttempt[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [metrics, setMetrics] = useState<SecuritySyncDailyMetric[]>([]);
