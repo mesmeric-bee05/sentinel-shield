@@ -14,6 +14,7 @@
 //   RESEND_API_KEY             - Required when SECURITY_ALERT_EMAIL is set
 //   SECURITY_ALERT_FROM        - "Name <addr>" for Resend (default: alerts@apexcare.ai)
 import { readFileSync } from "node:fs";
+import { emitSecurityEvent } from "@/lib/telemetry";
 
 export type OpenFinding = {
   internal_id: string;
@@ -85,6 +86,12 @@ export async function postWithRetry(
       try { bodyText = await res.text(); } catch { /* ignore */ }
       lastError = `[${res.status}] ${bodyText}`;
       if (!isRetryableStatus(res.status)) {
+        await emitSecurityEvent({
+          event: "security.notify.failed",
+          severity: "error",
+          message: `${label} notification failed permanently`,
+          attrs: { channel: label, attempt, status: res.status, retryable: false, error: lastError },
+        });
         console.error(`notify-security: ${label} failed permanently ${lastError}`);
         return { ok: false, attempts: attempt, status: res.status, error: lastError };
       }
@@ -93,10 +100,22 @@ export async function postWithRetry(
     }
     if (attempt < maxAttempts) {
       const delay = backoffDelay(attempt, opts.baseDelayMs ?? BASE_DELAY_MS);
+      await emitSecurityEvent({
+        event: "security.notify.retry",
+        severity: "warning",
+        message: `${label} notification attempt ${attempt} failed — retrying`,
+        attrs: { channel: label, attempt, max_attempts: maxAttempts, delay_ms: delay, status: lastStatus ?? null, error: lastError },
+      });
       console.warn(`notify-security: ${label} attempt ${attempt}/${maxAttempts} failed (${lastError}) — retrying in ${delay}ms`);
       await sleep(delay);
     }
   }
+  await emitSecurityEvent({
+    event: "security.notify.exhausted",
+    severity: "error",
+    message: `${label} notification gave up after ${maxAttempts} attempts`,
+    attrs: { channel: label, attempts: maxAttempts, status: lastStatus ?? null, error: lastError },
+  });
   console.error(`notify-security: ${label} gave up after ${maxAttempts} attempts: ${lastError}`);
   return { ok: false, attempts: maxAttempts, ...(lastStatus !== undefined ? { status: lastStatus } : {}), error: lastError };
 }
