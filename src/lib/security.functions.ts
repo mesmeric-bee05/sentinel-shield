@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { buildPagination, type ScanDiffEntry, type ScanDiffResponse } from "@/lib/security-contracts";
+import { emitSecurityEventAsync } from "@/lib/telemetry";
 
 export const listSecurityFindings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
