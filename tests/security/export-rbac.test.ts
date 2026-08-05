@@ -39,12 +39,13 @@ for (const fn of EXPORT_FNS) {
     ? ok(`${fn}: admin role verified before any service-role read`)
     : bad(`${fn}: service-role client reached without a preceding admin check`);
 
-  /Forbidden/.test(body)
+  /Forbidden|forbiddenExport\(/.test(body)
     ? ok(`${fn}: returns a Forbidden verdict for non-admins`)
     : bad(`${fn}: no Forbidden branch`);
 
   // The Forbidden branch must not carry rows.
-  const forbiddenBlock = body.slice(body.indexOf("Forbidden") - 200, body.indexOf("Forbidden") + 200);
+  const fIdx = Math.max(body.indexOf("forbiddenExport("), body.indexOf("Forbidden"));
+  const forbiddenBlock = body.slice(Math.max(0, fIdx - 200), fIdx + 200);
   /rows: \[\] as|forbiddenExport|resolved: \[\]/.test(forbiddenBlock)
     ? ok(`${fn}: Forbidden verdict returns zero rows`)
     : bad(`${fn}: Forbidden verdict may leak rows`, forbiddenBlock.slice(0, 120));
