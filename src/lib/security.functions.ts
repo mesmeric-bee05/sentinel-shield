@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { buildPagination, type ScanDiffEntry, type ScanDiffResponse } from "@/lib/security-contracts";
+import { emitSecurityEventAsync } from "@/lib/telemetry";
 
 export const listSecurityFindings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -177,3 +179,209 @@ export const getSecuritySyncMetrics = createServerFn({ method: "POST" })
     return { error: null as string | null, metrics: (metrics ?? []) as unknown as SecuritySyncDailyMetric[], topIps };
   });
 
+
+// ---------------------------------------------------------------------------
+// Export endpoints — RBAC-enforced, paginated, telemetry-instrumented.
+// Every export path re-verifies the caller's admin role via `has_role` on the
+// caller-scoped client BEFORE any service-role read, and emits a structured
+// `security.export` event so download activity is monitorable in production.
+// ---------------------------------------------------------------------------
+
+const ExportInput = z.object({
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(1000).default(500),
+  search: z.string().max(200).optional().nullable(),
+  status: z.string().max(50).optional().nullable(),
+  from: z.string().max(40).optional().nullable(),
+  to: z.string().max(40).optional().nullable(),
+});
+type ExportInputT = z.infer<typeof ExportInput>;
+
+function forbiddenExport(page: number, pageSize: number) {
+  return { error: "Forbidden" as const, rows: [] as never[], pagination: buildPagination(0, page, pageSize) };
+}
+
+/** Resolve an admin-role check without coupling to the generated client's rpc overloads. */
+async function assertAdmin(call: () => PromiseLike<{ data: unknown }>): Promise<boolean> {
+  const { data } = await call();
+  return data === true;
+}
+
+function range(input: ExportInputT): { from: number; to: number } {
+  const from = (input.page - 1) * input.pageSize;
+  return { from, to: from + input.pageSize - 1 };
+}
+
+/** Paginated, admin-only export of `security_findings`. */
+export const exportSecurityFindings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => ExportInput.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const t0 = Date.now();
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      emitSecurityEventAsync({ event: "security.export.denied", severity: "warning", attrs: { dataset: "security_findings", user_id: context.userId } });
+      return forbiddenExport(data.page, data.pageSize);
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { from, to } = range(data);
+    let q = supabaseAdmin
+      .from("security_findings")
+      .select("id, scanner_name, internal_id, title, severity, resource, status, rationale, first_seen_at, last_seen_at", { count: "exact" })
+      .order("last_seen_at", { ascending: false })
+      .range(from, to);
+    if (data.status) q = q.eq("status", data.status);
+    if (data.from) q = q.gte("last_seen_at", data.from);
+    if (data.to) q = q.lte("last_seen_at", data.to);
+    if (data.search) q = q.or(`title.ilike.%${data.search}%,internal_id.ilike.%${data.search}%,resource.ilike.%${data.search}%`);
+
+    const { data: rows, count, error } = await q;
+    if (error) {
+      emitSecurityEventAsync({ event: "security.export.failed", severity: "error", attrs: { dataset: "security_findings", error: error.message } });
+      return { error: error.message, rows: [] as never[], pagination: buildPagination(0, data.page, data.pageSize) };
+    }
+    emitSecurityEventAsync({
+      event: "security.export.completed",
+      attrs: { dataset: "security_findings", user_id: context.userId, rows: rows?.length ?? 0, total: count ?? 0, page: data.page, duration_ms: Date.now() - t0 },
+    });
+    return { error: null as string | null, rows: rows ?? [], pagination: buildPagination(count ?? 0, data.page, data.pageSize) };
+  });
+
+/** Paginated, admin-only export of `security_finding_audit`. */
+export const exportSecurityFindingAudit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => ExportInput.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const t0 = Date.now();
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      emitSecurityEventAsync({ event: "security.export.denied", severity: "warning", attrs: { dataset: "security_finding_audit", user_id: context.userId } });
+      return forbiddenExport(data.page, data.pageSize);
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { from, to } = range(data);
+    let q = supabaseAdmin
+      .from("security_finding_audit")
+      .select("id, created_at, internal_id, scanner_name, resolution, resolved_by, affected_endpoints, affected_queries, notes", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    if (data.status) q = q.eq("resolution", data.status);
+    if (data.from) q = q.gte("created_at", data.from);
+    if (data.to) q = q.lte("created_at", data.to);
+    if (data.search) q = q.or(`internal_id.ilike.%${data.search}%,scanner_name.ilike.%${data.search}%,notes.ilike.%${data.search}%`);
+
+    const { data: rows, count, error } = await q;
+    if (error) {
+      emitSecurityEventAsync({ event: "security.export.failed", severity: "error", attrs: { dataset: "security_finding_audit", error: error.message } });
+      return { error: error.message, rows: [] as never[], pagination: buildPagination(0, data.page, data.pageSize) };
+    }
+    emitSecurityEventAsync({
+      event: "security.export.completed",
+      attrs: { dataset: "security_finding_audit", user_id: context.userId, rows: rows?.length ?? 0, total: count ?? 0, page: data.page, duration_ms: Date.now() - t0 },
+    });
+    return { error: null as string | null, rows: rows ?? [], pagination: buildPagination(count ?? 0, data.page, data.pageSize) };
+  });
+
+/** Paginated, admin-only export of `security_sync_attempts`. */
+export const exportSecuritySyncAttempts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => ExportInput.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const t0 = Date.now();
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      emitSecurityEventAsync({ event: "security.export.denied", severity: "warning", attrs: { dataset: "security_sync_attempts", user_id: context.userId } });
+      return forbiddenExport(data.page, data.pageSize);
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { from, to } = range(data);
+    let q = supabaseAdmin
+      .from("security_sync_attempts" as never)
+      .select("*", { count: "exact" })
+      .order("received_at", { ascending: false })
+      .range(from, to);
+    if (data.status) q = q.eq("status", data.status);
+    if (data.from) q = q.gte("received_at", data.from);
+    if (data.to) q = q.lte("received_at", data.to);
+
+    const { data: rows, count, error } = await q;
+    if (error) {
+      emitSecurityEventAsync({ event: "security.export.failed", severity: "error", attrs: { dataset: "security_sync_attempts", error: error.message } });
+      return { error: error.message, rows: [] as SecuritySyncAttempt[], pagination: buildPagination(0, data.page, data.pageSize) };
+    }
+    emitSecurityEventAsync({
+      event: "security.export.completed",
+      attrs: { dataset: "security_sync_attempts", user_id: context.userId, rows: rows?.length ?? 0, total: count ?? 0, page: data.page, duration_ms: Date.now() - t0 },
+    });
+    return { error: null as string | null, rows: (rows ?? []) as unknown as SecuritySyncAttempt[], pagination: buildPagination(count ?? 0, data.page, data.pageSize) };
+  });
+
+// ---------------------------------------------------------------------------
+// Scan-to-scan diff
+// ---------------------------------------------------------------------------
+
+/**
+ * Compare the two most recent scan snapshots. Scans are identified by the
+ * distinct `last_seen_at` timestamps written by the security-sync webhook
+ * (all findings in one sync share a timestamp, so a snapshot = one bucket).
+ *
+ * resolved        — present in the previous snapshot, now fixed/ignored or absent
+ * remaining       — present in both snapshots and still open
+ * newlyIntroduced — open in the latest snapshot but absent from the previous one
+ */
+export const getSecurityScanDiff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<ScanDiffResponse> => {
+    const empty = { latestScanAt: null, previousScanAt: null, resolved: [], remaining: [], newlyIntroduced: [], reports: [] };
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) return { error: "Forbidden", ...empty };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("security_findings")
+      .select("internal_id, scanner_name, title, severity, resource, status, first_seen_at, last_seen_at")
+      .order("last_seen_at", { ascending: false })
+      .limit(2000);
+    if (error) return { error: error.message, ...empty };
+
+    const all = (rows ?? []) as ScanDiffEntry[];
+    // Bucket by scan timestamp (second precision absorbs per-row write skew).
+    const bucketKey = (iso: string) => iso.slice(0, 19);
+    const buckets = [...new Set(all.map((r) => bucketKey(r.last_seen_at)))].sort().reverse();
+    const latestKey = buckets[0] ?? null;
+    const previousKey = buckets[1] ?? null;
+
+    const latest = all.filter((r) => latestKey && bucketKey(r.last_seen_at) === latestKey);
+    const previous = all.filter((r) => previousKey && bucketKey(r.last_seen_at) === previousKey);
+    const prevIds = new Map(previous.map((r) => [`${r.scanner_name}::${r.internal_id}`, r]));
+    const latestIds = new Map(latest.map((r) => [`${r.scanner_name}::${r.internal_id}`, r]));
+
+    const resolved: ScanDiffEntry[] = [];
+    const remaining: ScanDiffEntry[] = [];
+    const newlyIntroduced: ScanDiffEntry[] = [];
+
+    for (const [key, row] of latestIds) {
+      if (row.status === "open") {
+        if (prevIds.has(key)) remaining.push(row);
+        else newlyIntroduced.push(row);
+      } else {
+        resolved.push(row);
+      }
+    }
+    // Findings that dropped out of the latest scan entirely count as resolved.
+    for (const [key, row] of prevIds) {
+      if (!latestIds.has(key) && row.status === "open") resolved.push({ ...row, status: "fixed" });
+    }
+
+    const bySeverity = (a: ScanDiffEntry, b: ScanDiffEntry) =>
+      ["error", "warn", "info"].indexOf(a.severity) - ["error", "warn", "info"].indexOf(b.severity) || a.internal_id.localeCompare(b.internal_id);
+
+    return {
+      error: null,
+      latestScanAt: latest[0]?.last_seen_at ?? null,
+      previousScanAt: previous[0]?.last_seen_at ?? null,
+      resolved: resolved.sort(bySeverity),
+      remaining: remaining.sort(bySeverity),
+      newlyIntroduced: newlyIntroduced.sort(bySeverity),
+      reports: [
+        { label: "Latest findings report", url: "/docs/security/findings-report.md" },
+        { label: "Accepted risks", url: "/docs/security/accepted-risks.md" },
+      ],
+    };
+  });

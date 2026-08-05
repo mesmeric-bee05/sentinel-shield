@@ -5,12 +5,12 @@ import { CheckCircle2, AlertCircle, RefreshCw, Loader2, ShieldAlert, Clock, XCir
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { listSecuritySyncAttempts, getSecuritySyncMetrics, type SecuritySyncAttempt, type SecuritySyncDailyMetric } from "@/lib/security.functions";
+import { listSecuritySyncAttempts, getSecuritySyncMetrics, exportSecuritySyncAttempts, type SecuritySyncAttempt, type SecuritySyncDailyMetric } from "@/lib/security.functions";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
-import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
 import { rollupByDay } from "@/lib/security-sync-metrics";
+import { runServerExport } from "@/lib/security-export-client";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/security-sync")({
@@ -36,6 +36,7 @@ const STATUS_TONE: Record<SecuritySyncAttempt["status"], string> = {
 function SecuritySyncPage() {
   const listFn = useServerFn(listSecuritySyncAttempts);
   const metricsFn = useServerFn(getSecuritySyncMetrics);
+  const exportFn = useServerFn(exportSecuritySyncAttempts);
   const [attempts, setAttempts] = useState<SecuritySyncAttempt[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [metrics, setMetrics] = useState<SecuritySyncDailyMetric[]>([]);
@@ -95,6 +96,14 @@ function SecuritySyncPage() {
     { key: "error", label: "Error", value: (a: SecuritySyncAttempt) => a.error ?? "" },
   ];
 
+  const runExport = async (format: "csv" | "json") => {
+    const outcome = await runServerExport({ fn: exportFn as never, filters, format, basename: "security-sync-attempts", cols: exportCols });
+    if (!outcome.ok) {
+      if (outcome.denied) setForbidden(outcome.denied);
+      else toast.error(outcome.error ?? "Export failed");
+    }
+  };
+
   if (forbidden) return <div className="p-10"><PermissionDeniedCard info={forbidden} onRetry={load} /></div>;
 
   return (
@@ -132,8 +141,8 @@ function SecuritySyncPage() {
           { value: "disabled", label: "Disabled" },
         ]}
         searchPlaceholder="Nonce, IP, error…"
-        onExportCsv={() => downloadCsv(timestampedName("security-sync-attempts"), filtered, exportCols)}
-        onExportJson={() => downloadJson(timestampedName("security-sync-attempts"), filtered)}
+        onExportCsv={() => void runExport("csv")}
+        onExportJson={() => void runExport("json")}
       />
 
       <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">

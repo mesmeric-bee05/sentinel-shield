@@ -12,6 +12,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHmac, timingSafeEqual } from "crypto";
 import { z } from "zod";
+import { emitSecurityEvent } from "@/lib/telemetry";
 
 const REPLAY_WINDOW_MS = 5 * 60 * 1000;
 const MAX_BYTES = Number(process.env.SECURITY_SYNC_MAX_BYTES ?? 16_384);         // 16 KB default
@@ -90,6 +91,21 @@ export const Route = createFileRoute("/api/public/security-sync")({
           } catch {
             // Never fail the response because attempt logging failed.
           }
+          await emitSecurityEvent({
+            event: `security.sync.${opts.status}`,
+            severity: opts.status === "accepted" ? "info" : opts.status === "write_failed" ? "error" : "warning",
+            message: opts.error ?? `security-sync attempt ${opts.status}`,
+            attrs: {
+              status: opts.status,
+              signature_valid: opts.signature_valid,
+              source_ip: ip,
+              nonce: opts.nonce,
+              payload_bytes: opts.payload_bytes,
+              finding_count: opts.finding_count,
+              duration_ms: Date.now() - t0,
+              error: opts.error,
+            },
+          });
         };
 
         const secret = process.env.SECURITY_SYNC_SECRET;
@@ -191,6 +207,18 @@ export const Route = createFileRoute("/api/public/security-sync")({
           return new Response(`upsert_failed: ${error.message}`, { status: 500 });
         }
 
+        await emitSecurityEvent({
+          event: "security.sync.accepted",
+          attrs: {
+            status: "accepted",
+            signature_valid: true,
+            source_ip: ip,
+            nonce: parsed.nonce,
+            payload_bytes: payloadBytes,
+            finding_count: rows.length,
+            duration_ms: Date.now() - t0,
+          },
+        });
         return Response.json({ ok: true, upserted: rows.length, nonce: parsed.nonce });
       },
     },
