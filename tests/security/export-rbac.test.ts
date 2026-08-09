@@ -20,7 +20,16 @@ console.log("\n▶ security export RBAC\n");
 
 const src = readFileSync("src/lib/security.functions.ts", "utf8");
 
-const EXPORT_FNS = ["exportSecurityFindings", "exportSecurityFindingAudit", "exportSecuritySyncAttempts", "getSecurityScanDiff"];
+const EXPORT_FNS = ["exportSecurityFindings", "exportSecurityFindingAudit", "exportSecuritySyncAttempts", "getSecurityScanDiff", "listSecurityExportAudit"];
+
+// Every export run must leave a durable audit row (who/when/filters/window).
+["exportSecurityFindings", "exportSecurityFindingAudit", "exportSecuritySyncAttempts"].forEach((fn) => {
+  const start = src.indexOf(`export const ${fn} = createServerFn`);
+  const body = src.slice(start, start + 3000);
+  body.includes("recordExportAudit")
+    ? ok(`${fn}: writes a security_export_audit row`)
+    : bad(`${fn}: export run is not audited`);
+});
 
 for (const fn of EXPORT_FNS) {
   const start = src.indexOf(`export const ${fn} = createServerFn`);
