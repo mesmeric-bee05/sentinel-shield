@@ -421,3 +421,42 @@ export const getSecurityScanDiff = createServerFn({ method: "POST" })
       ],
     };
   });
+
+export type SecurityExportAuditRow = {
+  id: string;
+  actor_id: string;
+  export_kind: string;
+  format: string;
+  filters: unknown;
+  scan_window_from: string | null;
+  scan_window_to: string | null;
+  row_count: number;
+  duration_ms: number | null;
+  created_at: string;
+};
+
+/** Admin-only listing of who exported security data, when, and with what filters. */
+export const listSecurityExportAudit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => ExportInput.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      return { error: "Forbidden", rows: [] as SecurityExportAuditRow[], pagination: buildPagination(0, data.page, data.pageSize) };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { from, to } = range(data);
+    let q = supabaseAdmin
+      .from("security_export_audit")
+      .select("id, actor_id, export_kind, format, filters, scan_window_from, scan_window_to, row_count, duration_ms, created_at", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    if (data.search) q = q.ilike("export_kind", `%${data.search}%`);
+    if (data.from) q = q.gte("created_at", data.from);
+    if (data.to) q = q.lte("created_at", data.to);
+    const { data: rows, count, error } = await q;
+    return {
+      error: error?.message ?? null,
+      rows: (rows ?? []) as SecurityExportAuditRow[],
+      pagination: buildPagination(count ?? 0, data.page, data.pageSize),
+    };
+  });
