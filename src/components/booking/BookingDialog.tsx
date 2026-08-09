@@ -268,7 +268,7 @@ export function BookingDialog({ open, onClose, provider: initialProvider, slot: 
               {errorMsg && (
                 <div className="text-sm text-destructive flex items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
                   <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{errorMsg}</span>
-                  {expired && <Button size="sm" variant="outline" onClick={retryHold}>Retry hold</Button>}
+                  {!hold && <Button size="sm" variant="outline" onClick={retryHold}>Retry hold</Button>}
                 </div>
               )}
             </div>
@@ -276,7 +276,7 @@ export function BookingDialog({ open, onClose, provider: initialProvider, slot: 
             <div className="px-6 py-4 border-t border-border flex flex-col gap-2">
               {(aiLoading || !hold || expired) && (
                 <div className="text-[11px] text-muted-foreground text-right">
-                  {!hold && !expired && <>Reserving slot…</>}
+                  {!hold && !expired && !errorMsg && <>Reserving slot…</>}
                   {expired && <>Hold expired — tap retry to reserve again.</>}
                   {hold && !expired && aiLoading && <>Drafting AI summary — you can skip and confirm anyway.</>}
                 </div>
