@@ -12,6 +12,7 @@ import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { HistoryFilters, type HistoryFilterState, emptyFilters, applyHistoryFilter, paginate, Pager } from "@/components/admin/HistoryFilters";
 import { securityAuditExportCols } from "@/lib/security-audit-export";
 import { PageHeader } from "./app";
+import { ExportAuditPanel } from "@/components/admin/ExportAuditPanel";
 
 export const Route = createFileRoute("/app/admin/security-audit")({
   beforeLoad: async () => {
@@ -153,6 +154,7 @@ function SecurityAuditPage() {
       </div>
       <div className="text-xs text-muted-foreground mt-2">Showing {slice.length} of {total}</div>
       <Pager page={page} pages={pages} onPage={setPage} />
+      <ExportAuditPanel />
     </div>
   );
 }

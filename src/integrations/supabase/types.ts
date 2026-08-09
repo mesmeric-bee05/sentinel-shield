@@ -556,6 +556,45 @@ export type Database = {
         }
         Relationships: []
       }
+      security_export_audit: {
+        Row: {
+          actor_id: string
+          created_at: string
+          duration_ms: number | null
+          export_kind: string
+          filters: Json
+          format: string
+          id: string
+          row_count: number
+          scan_window_from: string | null
+          scan_window_to: string | null
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          duration_ms?: number | null
+          export_kind: string
+          filters?: Json
+          format?: string
+          id?: string
+          row_count?: number
+          scan_window_from?: string | null
+          scan_window_to?: string | null
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          export_kind?: string
+          filters?: Json
+          format?: string
+          id?: string
+          row_count?: number
+          scan_window_from?: string | null
+          scan_window_to?: string | null
+        }
+        Relationships: []
+      }
       security_finding_audit: {
         Row: {
           affected_endpoints: string[]

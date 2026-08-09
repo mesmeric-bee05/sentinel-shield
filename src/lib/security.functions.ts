@@ -207,6 +207,39 @@ async function assertAdmin(call: () => PromiseLike<{ data: unknown }>): Promise<
   return data === true;
 }
 
+/**
+ * Record one audit row per export run (page 1 only — later pages belong to the
+ * same run). Never throws: an audit write must not fail the download.
+ */
+async function recordExportAudit(opts: {
+  actorId: string;
+  dataset: string;
+  input: ExportInputT;
+  rowCount: number;
+  durationMs: number;
+}): Promise<void> {
+  if (opts.input.page !== 1) return;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("security_export_audit").insert({
+      actor_id: opts.actorId,
+      export_kind: opts.dataset,
+      format: "server",
+      filters: {
+        search: opts.input.search ?? null,
+        status: opts.input.status ?? null,
+        pageSize: opts.input.pageSize,
+      },
+      scan_window_from: opts.input.from ?? null,
+      scan_window_to: opts.input.to ?? null,
+      row_count: opts.rowCount,
+      duration_ms: opts.durationMs,
+    });
+  } catch {
+    // non-fatal
+  }
+}
+
 function range(input: ExportInputT): { from: number; to: number } {
   const from = (input.page - 1) * input.pageSize;
   return { from, to: from + input.pageSize - 1 };
@@ -239,6 +272,7 @@ export const exportSecurityFindings = createServerFn({ method: "POST" })
       emitSecurityEventAsync({ event: "security.export.failed", severity: "error", attrs: { dataset: "security_findings", error: error.message } });
       return { error: error.message, rows: [] as never[], pagination: buildPagination(0, data.page, data.pageSize) };
     }
+    await recordExportAudit({ actorId: context.userId, dataset: "security_findings", input: data, rowCount: count ?? 0, durationMs: Date.now() - t0 });
     emitSecurityEventAsync({
       event: "security.export.completed",
       attrs: { dataset: "security_findings", user_id: context.userId, rows: rows?.length ?? 0, total: count ?? 0, page: data.page, duration_ms: Date.now() - t0 },
@@ -273,6 +307,7 @@ export const exportSecurityFindingAudit = createServerFn({ method: "POST" })
       emitSecurityEventAsync({ event: "security.export.failed", severity: "error", attrs: { dataset: "security_finding_audit", error: error.message } });
       return { error: error.message, rows: [] as never[], pagination: buildPagination(0, data.page, data.pageSize) };
     }
+    await recordExportAudit({ actorId: context.userId, dataset: "security_finding_audit", input: data, rowCount: count ?? 0, durationMs: Date.now() - t0 });
     emitSecurityEventAsync({
       event: "security.export.completed",
       attrs: { dataset: "security_finding_audit", user_id: context.userId, rows: rows?.length ?? 0, total: count ?? 0, page: data.page, duration_ms: Date.now() - t0 },
@@ -306,6 +341,7 @@ export const exportSecuritySyncAttempts = createServerFn({ method: "POST" })
       emitSecurityEventAsync({ event: "security.export.failed", severity: "error", attrs: { dataset: "security_sync_attempts", error: error.message } });
       return { error: error.message, rows: [] as SecuritySyncAttempt[], pagination: buildPagination(0, data.page, data.pageSize) };
     }
+    await recordExportAudit({ actorId: context.userId, dataset: "security_sync_attempts", input: data, rowCount: count ?? 0, durationMs: Date.now() - t0 });
     emitSecurityEventAsync({
       event: "security.export.completed",
       attrs: { dataset: "security_sync_attempts", user_id: context.userId, rows: rows?.length ?? 0, total: count ?? 0, page: data.page, duration_ms: Date.now() - t0 },
@@ -383,5 +419,44 @@ export const getSecurityScanDiff = createServerFn({ method: "POST" })
         { label: "Latest findings report", url: "/docs/security/findings-report.md" },
         { label: "Accepted risks", url: "/docs/security/accepted-risks.md" },
       ],
+    };
+  });
+
+export type SecurityExportAuditRow = {
+  id: string;
+  actor_id: string;
+  export_kind: string;
+  format: string;
+  filters: Record<string, string | number | boolean | null>;
+  scan_window_from: string | null;
+  scan_window_to: string | null;
+  row_count: number;
+  duration_ms: number | null;
+  created_at: string;
+};
+
+/** Admin-only listing of who exported security data, when, and with what filters. */
+export const listSecurityExportAudit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => ExportInput.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      return { error: "Forbidden", rows: [] as SecurityExportAuditRow[], pagination: buildPagination(0, data.page, data.pageSize) };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { from, to } = range(data);
+    let q = supabaseAdmin
+      .from("security_export_audit")
+      .select("id, actor_id, export_kind, format, filters, scan_window_from, scan_window_to, row_count, duration_ms, created_at", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    if (data.search) q = q.ilike("export_kind", `%${data.search}%`);
+    if (data.from) q = q.gte("created_at", data.from);
+    if (data.to) q = q.lte("created_at", data.to);
+    const { data: rows, count, error } = await q;
+    return {
+      error: error?.message ?? null,
+      rows: (rows ?? []).map((r) => ({ ...r, filters: (r.filters ?? {}) as Record<string, string | number | boolean | null> })) as SecurityExportAuditRow[],
+      pagination: buildPagination(count ?? 0, data.page, data.pageSize),
     };
   });

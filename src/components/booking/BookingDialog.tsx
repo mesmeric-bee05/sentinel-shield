@@ -68,7 +68,13 @@ export function BookingDialog({ open, onClose, provider: initialProvider, slot: 
     setProvider(initialProvider); setSlot(initialSlot); setHold(null); setSmsRequested(false);
     if (reason.trim().length >= 5) {
       setAiLoading(true);
-      summarize({ data: { reason } }).then((r) => setAiSummary(r.summary || "")).catch(() => {}).finally(() => setAiLoading(false));
+      // Hard timeout so a slow/failed AI call can never keep the dialog in a
+      // permanent "Drafting…" state.
+      const timeout = new Promise<{ summary: string }>((resolve) => setTimeout(() => resolve({ summary: "" }), 12_000));
+      Promise.race([summarize({ data: { reason } }), timeout])
+        .then((r) => setAiSummary(r.summary || ""))
+        .catch(() => setAiSummary(""))
+        .finally(() => setAiLoading(false));
     }
     getContact({}).then((r) => setContact({ phoneE164: r.phoneE164, smsOptIn: r.smsOptIn })).catch(() => {});
   }, [open, reason, initialProvider, initialSlot, summarize, getContact]);
@@ -78,12 +84,13 @@ export function BookingDialog({ open, onClose, provider: initialProvider, slot: 
     if (!open || !provider || !slot || acquiringRef.current) return;
     acquiringRef.current = true;
     setHold(null);
+    setErrorMsg("");
     acquire({ data: { providerId: provider.id, startsAtIso: new Date(slot.iso).toISOString(), durationMinutes: 30, ttlSeconds: 180 } })
       .then((r) => {
         if (r.ok && r.holdId && r.expiresAt) setHold({ holdId: r.holdId, expiresAt: r.expiresAt });
         else setErrorMsg(reasonText(r.reason));
       })
-      .catch(() => setErrorMsg("Could not reserve this slot"))
+      .catch((e) => setErrorMsg(e instanceof Error ? `Could not reserve this slot: ${e.message}` : "Could not reserve this slot"))
       .finally(() => { acquiringRef.current = false; });
   }, [open, provider, slot, acquire]);
 
@@ -268,7 +275,7 @@ export function BookingDialog({ open, onClose, provider: initialProvider, slot: 
               {errorMsg && (
                 <div className="text-sm text-destructive flex items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
                   <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{errorMsg}</span>
-                  {expired && <Button size="sm" variant="outline" onClick={retryHold}>Retry hold</Button>}
+                  {!hold && <Button size="sm" variant="outline" onClick={retryHold}>Retry hold</Button>}
                 </div>
               )}
             </div>
@@ -276,7 +283,7 @@ export function BookingDialog({ open, onClose, provider: initialProvider, slot: 
             <div className="px-6 py-4 border-t border-border flex flex-col gap-2">
               {(aiLoading || !hold || expired) && (
                 <div className="text-[11px] text-muted-foreground text-right">
-                  {!hold && !expired && <>Reserving slot…</>}
+                  {!hold && !expired && !errorMsg && <>Reserving slot…</>}
                   {expired && <>Hold expired — tap retry to reserve again.</>}
                   {hold && !expired && aiLoading && <>Drafting AI summary — you can skip and confirm anyway.</>}
                 </div>

@@ -59,6 +59,7 @@ function ScanDiffPage() {
   const [diff, setDiff] = useState<ScanDiffResponse>(EMPTY);
   const [forbidden, setForbidden] = useState<ForbiddenInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [live, setLive] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -82,6 +83,22 @@ function ScanDiffPage() {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  // Auto-refresh when a new scan writes to security_findings so the resolved vs
+  // remaining view never shows a stale snapshot. Debounced: a scan writes many
+  // rows in a burst, and we only want one reload at the end of it.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const channel = supabase
+      .channel("security-findings-diff")
+      .on("postgres_changes", { event: "*", schema: "public", table: "security_findings" }, () => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => { setLive(true); load(); }, 1500);
+      })
+      .subscribe();
+    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, []);
 
   const allRows = [
     ...diff.resolved.map((r) => ({ ...r, bucket: "resolved" })),
@@ -108,6 +125,7 @@ function ScanDiffPage() {
               <ExternalLink className="w-3 h-3" />{r.label}
             </a>
           ))}
+          {live && <span className="inline-flex items-center gap-1 text-emerald-600"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />live</span>}
           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={load}>
             <RefreshCw className="w-3 h-3 mr-1" /> Refresh
           </Button>

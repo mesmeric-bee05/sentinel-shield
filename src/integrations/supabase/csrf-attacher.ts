@@ -9,6 +9,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 let cache: { token: string; expiresAt: number } | null = null;
 let inflight: Promise<string | null> | null = null;
+// True while the bootstrap getCsrfToken call is in flight. That call goes
+// through this same client middleware, so without this flag it would await its
+// own `inflight` promise and deadlock every server function in the app.
+let bootstrapping = false;
 
 const REFRESH_WINDOW_MS = 10 * 60 * 1000;
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -21,7 +25,13 @@ async function fetchToken(): Promise<string | null> {
       // do not need CSRF (server middleware skips them anyway).
       const { data } = await supabase.auth.getSession();
       if (!data.session) return null;
-      const r = await getCsrfToken({ data: undefined as never });
+      bootstrapping = true;
+      let r: { token: string; expiresAt: number } | null = null;
+      try {
+        r = await getCsrfToken({ data: undefined as never });
+      } finally {
+        bootstrapping = false;
+      }
       if (r && r.token) {
         cache = { token: r.token, expiresAt: r.expiresAt };
         return r.token;
@@ -58,6 +68,7 @@ export const attachCsrfToken = createMiddleware({ type: "function" }).client(
     // Attach only for mutating methods. Read fns get no header (and server
     // middleware skips them). We cannot introspect method here easily, so attach
     // unconditionally; the extra header is harmless for GETs.
+    if (bootstrapping) return next();
     const token = await getToken(false);
     const headers: Record<string, string> = token ? { "x-csrf-token": token } : {};
     const result = await next({ headers });
