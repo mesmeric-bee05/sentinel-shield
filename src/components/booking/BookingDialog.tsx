@@ -68,7 +68,13 @@ export function BookingDialog({ open, onClose, provider: initialProvider, slot: 
     setProvider(initialProvider); setSlot(initialSlot); setHold(null); setSmsRequested(false);
     if (reason.trim().length >= 5) {
       setAiLoading(true);
-      summarize({ data: { reason } }).then((r) => setAiSummary(r.summary || "")).catch(() => {}).finally(() => setAiLoading(false));
+      // Hard timeout so a slow/failed AI call can never keep the dialog in a
+      // permanent "Drafting…" state.
+      const timeout = new Promise<{ summary: string }>((resolve) => setTimeout(() => resolve({ summary: "" }), 12_000));
+      Promise.race([summarize({ data: { reason } }), timeout])
+        .then((r) => setAiSummary(r.summary || ""))
+        .catch(() => setAiSummary(""))
+        .finally(() => setAiLoading(false));
     }
     getContact({}).then((r) => setContact({ phoneE164: r.phoneE164, smsOptIn: r.smsOptIn })).catch(() => {});
   }, [open, reason, initialProvider, initialSlot, summarize, getContact]);
@@ -78,12 +84,13 @@ export function BookingDialog({ open, onClose, provider: initialProvider, slot: 
     if (!open || !provider || !slot || acquiringRef.current) return;
     acquiringRef.current = true;
     setHold(null);
+    setErrorMsg("");
     acquire({ data: { providerId: provider.id, startsAtIso: new Date(slot.iso).toISOString(), durationMinutes: 30, ttlSeconds: 180 } })
       .then((r) => {
         if (r.ok && r.holdId && r.expiresAt) setHold({ holdId: r.holdId, expiresAt: r.expiresAt });
         else setErrorMsg(reasonText(r.reason));
       })
-      .catch(() => setErrorMsg("Could not reserve this slot"))
+      .catch((e) => setErrorMsg(e instanceof Error ? `Could not reserve this slot: ${e.message}` : "Could not reserve this slot"))
       .finally(() => { acquiringRef.current = false; });
   }, [open, provider, slot, acquire]);
 
