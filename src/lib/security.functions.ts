@@ -427,7 +427,7 @@ export type SecurityExportAuditRow = {
   actor_id: string;
   export_kind: string;
   format: string;
-  filters: unknown;
+  filters: Record<string, string | number | boolean | null>;
   scan_window_from: string | null;
   scan_window_to: string | null;
   row_count: number;
@@ -456,7 +456,7 @@ export const listSecurityExportAudit = createServerFn({ method: "POST" })
     const { data: rows, count, error } = await q;
     return {
       error: error?.message ?? null,
-      rows: (rows ?? []) as SecurityExportAuditRow[],
+      rows: (rows ?? []).map((r) => ({ ...r, filters: (r.filters ?? {}) as Record<string, string | number | boolean | null> })) as SecurityExportAuditRow[],
       pagination: buildPagination(count ?? 0, data.page, data.pageSize),
     };
   });
