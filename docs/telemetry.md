@@ -97,3 +97,29 @@ Create these in Sentry (Alerts → Create Alert → Number of events):
 
 Add `SENTRY_DSN` (and optionally `SENTRY_ENVIRONMENT`) as project secrets to
 activate forwarding; without them logging still works and Sentry is a no-op.
+
+## Sentry alert rules (production paging)
+
+Alert rules are provisioned as code in `scripts/ci/sentry-alerts.ts` and applied
+with `bun run sentry:alerts`. Each rule matches on the `event` tag from the
+taxonomy above, so renaming an event without updating the script silently
+disables paging.
+
+| Rule | Event | Trips at | Window | Re-alert |
+|------|-------|----------|--------|----------|
+| Security sync rate limiting spike | `security.sync.rate_limited` | 10 events | 5m | 30m |
+| Security sync payload too large spike | `security.sync.payload_too_large` | 5 events | 5m | 30m |
+| Security notifier retry failures | `notifier.retry_failed` | 3 events | 15m | 60m |
+
+Required environment: `SENTRY_AUTH_TOKEN` (project:write), `SENTRY_ORG`,
+`SENTRY_PROJECT`, optional `SENTRY_ENVIRONMENT` and `SENTRY_HOST` (self-hosted).
+Without those the script prints the intended rules and exits 0 — it never fails
+a pipeline. Re-runs are idempotent: rules are upserted by name.
+
+## Automated coverage
+
+| Suite | What it pins |
+|-------|--------------|
+| `bun run test:metrics-contract` | metrics response schema + pagination metadata |
+| `bun run test:export-rbac` | admin guard, Forbidden verdicts, export audit rows |
+| `bun run test:admin-diff-e2e` | scan-diff buckets, realtime refresh, CSV/JSON parity, paging, RBAC |
