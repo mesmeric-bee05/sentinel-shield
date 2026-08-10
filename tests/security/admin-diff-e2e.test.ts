@@ -117,7 +117,7 @@ if (!adminOutcome.ok) {
   const csv = toCsv(adminOutcome.rows, cols);
   const lines = csv.trim().split("\n");
   lines.length === TOTAL + 1 ? ok("CSV has one header row plus every data row") : bad(`CSV had ${lines.length} lines, expected ${TOTAL + 1}`);
-  lines[0] === '"Internal ID","Severity","Status"' ? ok("CSV header matches the declared columns") : bad(`unexpected CSV header: ${lines[0]}`);
+  lines[0] === "Internal ID,Severity,Status" ? ok("CSV header matches the declared columns") : bad(`unexpected CSV header: ${lines[0]}`);
   lines[1]?.includes("finding_0") ? ok("CSV first data row matches the first fetched row") : bad("CSV first data row mismatch");
 
   const json = JSON.parse(JSON.stringify(adminOutcome.rows)) as Row[];
