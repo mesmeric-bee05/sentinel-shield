@@ -70,3 +70,7 @@ jobs:
 
       - name: Export endpoint RBAC regression
         run: bun run test:export-rbac
+
+      - name: Admin scan-diff + export E2E (RBAC, pagination, CSV/JSON parity)
+        run: bun run test:admin-diff-e2e
+
