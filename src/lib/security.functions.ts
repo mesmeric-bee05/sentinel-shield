@@ -468,7 +468,7 @@ export const listSecurityExportAudit = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .range(from, to);
     if (data.kind) q = q.eq("export_kind", data.kind);
-    if (data.actor) q = q.ilike("actor_id::text", `%${data.actor}%`);
+    if (data.actor) q = q.filter("actor_id::text", "ilike", `%${data.actor.replace(/[%,()]/g, "")}%`);
     if (data.search) {
       const term = data.search.replace(/[%,()]/g, "");
       q = q.or(`export_kind.ilike.%${term}%,correlation_id.ilike.%${term}%`);
