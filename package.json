@@ -19,13 +19,14 @@
     "test:audit-parity": "bun run tests/security/security-audit-parity.test.ts",
     "test:sync-metrics-parity": "bun run tests/security/security-sync-metrics-parity.test.ts",
     "test:notify-security": "bun run tests/security/notify-security.test.ts",
-    "test:all": "bun run test:security && bun run test:rls-regression && bun run test:security-sync && bun run test:scope-regression && bun run test:requeue-parity && bun run test:chw-requeue-e2e && bun run test:audit-parity && bun run test:sync-metrics-parity && bun run test:notify-security && bun run test:metrics-contract && bun run test:export-rbac && bun run test:admin-diff-e2e",
+    "test:all": "bun run test:security && bun run test:rls-regression && bun run test:security-sync && bun run test:scope-regression && bun run test:requeue-parity && bun run test:chw-requeue-e2e && bun run test:audit-parity && bun run test:sync-metrics-parity && bun run test:notify-security && bun run test:metrics-contract && bun run test:export-rbac && bun run test:admin-diff-e2e && bun run test:export-jobs",
     "security-gate": "bun run scripts/ci/security-gate.ts",
     "security-report": "bun run scripts/ci/export-findings-report.ts",
     "sentry:alerts": "bun run scripts/ci/sentry-alerts.ts",
     "test:metrics-contract": "bun run tests/security/security-sync-metrics-contract.test.ts",
     "test:export-rbac": "bun run tests/security/export-rbac.test.ts",
-    "test:admin-diff-e2e": "bun run tests/security/admin-diff-e2e.test.ts"
+    "test:admin-diff-e2e": "bun run tests/security/admin-diff-e2e.test.ts",
+    "test:export-jobs": "bun run tests/security/export-jobs.test.ts"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

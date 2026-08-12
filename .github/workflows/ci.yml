@@ -74,3 +74,6 @@ jobs:
       - name: Admin scan-diff + export E2E (RBAC, pagination, CSV/JSON parity)
         run: bun run test:admin-diff-e2e
 
+      - name: Export job + backfill regression
+        run: bun run test:export-jobs
+
