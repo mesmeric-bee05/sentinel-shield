@@ -601,3 +601,20 @@ export const downloadSecurityExportJob = createServerFn({ method: "POST" })
     });
     return { error: null, dataset: job.dataset, format: job.format, payload: job.result_payload };
   });
+
+/** Newest scan timestamp — used by the diff page watermark backfill. */
+export const getLatestScanAt = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ error: string | null; latestScanAt: string | null }> => {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      return { error: "Forbidden", latestScanAt: null };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("security_findings")
+      .select("last_seen_at")
+      .order("last_seen_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return { error: error?.message ?? null, latestScanAt: data?.last_seen_at ?? null };
+  });

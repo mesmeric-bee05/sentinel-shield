@@ -5,7 +5,7 @@ import { ArrowRight, CheckCircle2, AlertTriangle, ShieldAlert, RefreshCw, Loader
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { getSecurityScanDiff } from "@/lib/security.functions";
+import { getSecurityScanDiff, getLatestScanAt } from "@/lib/security.functions";
 import { ScanDiffResponseSchema, type ScanDiffEntry, type ScanDiffResponse } from "@/lib/security-contracts";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
@@ -57,6 +57,7 @@ const diffCols = [
 
 function ScanDiffPage() {
   const diffFn = useServerFn(getSecurityScanDiff);
+  const latestFn = useServerFn(getLatestScanAt);
   const [diff, setDiff] = useState<ScanDiffResponse>(EMPTY);
   const [forbidden, setForbidden] = useState<ForbiddenInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -106,14 +107,11 @@ function ScanDiffPage() {
 
     const backfill = async () => {
       if (cancelled || document.hidden) return;
-      const { data, error } = await supabase
-        .from("security_findings")
-        .select("last_seen_at")
-        .order("last_seen_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error || !data) return;
-      if (isStale(watermark.current, data.last_seen_at)) { setLive(true); void load(); }
+      try {
+        const res = await latestFn({ data: undefined });
+        if (res.error || !res.latestScanAt) return;
+        if (isStale(watermark.current, res.latestScanAt)) { setLive(true); void load(); }
+      } catch { /* transient — the next backfill tick retries */ }
     };
 
     const channel = supabase
