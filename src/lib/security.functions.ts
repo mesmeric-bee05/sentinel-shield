@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildPagination, type ScanDiffEntry, type ScanDiffResponse } from "@/lib/security-contracts";
-import { emitSecurityEventAsync } from "@/lib/telemetry";
+import { emitSecurityEventAsync, newCorrelationId } from "@/lib/telemetry";
+import { EXPORT_DATASET_VALUES, type ExportDataset, type SecurityExportJob } from "@/lib/security-export-datasets";
 
 export const listSecurityFindings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -217,6 +218,7 @@ async function recordExportAudit(opts: {
   input: ExportInputT;
   rowCount: number;
   durationMs: number;
+  correlationId?: string;
 }): Promise<void> {
   if (opts.input.page !== 1) return;
   try {
@@ -234,6 +236,7 @@ async function recordExportAudit(opts: {
       scan_window_to: opts.input.to ?? null,
       row_count: opts.rowCount,
       duration_ms: opts.durationMs,
+      correlation_id: opts.correlationId ?? null,
     });
   } catch {
     // non-fatal
@@ -272,8 +275,10 @@ export const exportSecurityFindings = createServerFn({ method: "POST" })
       emitSecurityEventAsync({ event: "security.export.failed", severity: "error", attrs: { dataset: "security_findings", error: error.message } });
       return { error: error.message, rows: [] as never[], pagination: buildPagination(0, data.page, data.pageSize) };
     }
-    await recordExportAudit({ actorId: context.userId, dataset: "security_findings", input: data, rowCount: count ?? 0, durationMs: Date.now() - t0 });
+    const correlationId = newCorrelationId();
+    await recordExportAudit({ actorId: context.userId, dataset: "security_findings", input: data, rowCount: count ?? 0, durationMs: Date.now() - t0, correlationId });
     emitSecurityEventAsync({
+      correlationId,
       event: "security.export.completed",
       attrs: { dataset: "security_findings", user_id: context.userId, rows: rows?.length ?? 0, total: count ?? 0, page: data.page, duration_ms: Date.now() - t0 },
     });
@@ -307,8 +312,10 @@ export const exportSecurityFindingAudit = createServerFn({ method: "POST" })
       emitSecurityEventAsync({ event: "security.export.failed", severity: "error", attrs: { dataset: "security_finding_audit", error: error.message } });
       return { error: error.message, rows: [] as never[], pagination: buildPagination(0, data.page, data.pageSize) };
     }
-    await recordExportAudit({ actorId: context.userId, dataset: "security_finding_audit", input: data, rowCount: count ?? 0, durationMs: Date.now() - t0 });
+    const correlationId = newCorrelationId();
+    await recordExportAudit({ actorId: context.userId, dataset: "security_finding_audit", input: data, rowCount: count ?? 0, durationMs: Date.now() - t0, correlationId });
     emitSecurityEventAsync({
+      correlationId,
       event: "security.export.completed",
       attrs: { dataset: "security_finding_audit", user_id: context.userId, rows: rows?.length ?? 0, total: count ?? 0, page: data.page, duration_ms: Date.now() - t0 },
     });
@@ -341,8 +348,10 @@ export const exportSecuritySyncAttempts = createServerFn({ method: "POST" })
       emitSecurityEventAsync({ event: "security.export.failed", severity: "error", attrs: { dataset: "security_sync_attempts", error: error.message } });
       return { error: error.message, rows: [] as SecuritySyncAttempt[], pagination: buildPagination(0, data.page, data.pageSize) };
     }
-    await recordExportAudit({ actorId: context.userId, dataset: "security_sync_attempts", input: data, rowCount: count ?? 0, durationMs: Date.now() - t0 });
+    const correlationId = newCorrelationId();
+    await recordExportAudit({ actorId: context.userId, dataset: "security_sync_attempts", input: data, rowCount: count ?? 0, durationMs: Date.now() - t0, correlationId });
     emitSecurityEventAsync({
+      correlationId,
       event: "security.export.completed",
       attrs: { dataset: "security_sync_attempts", user_id: context.userId, rows: rows?.length ?? 0, total: count ?? 0, page: data.page, duration_ms: Date.now() - t0 },
     });
@@ -432,13 +441,21 @@ export type SecurityExportAuditRow = {
   scan_window_to: string | null;
   row_count: number;
   duration_ms: number | null;
+  correlation_id: string | null;
   created_at: string;
 };
+
+const ExportAuditFilterInput = ExportInput.extend({
+  actor: z.string().max(80).optional().nullable(),
+  kind: z.string().max(80).optional().nullable(),
+  windowFrom: z.string().max(40).optional().nullable(),
+  windowTo: z.string().max(40).optional().nullable(),
+});
 
 /** Admin-only listing of who exported security data, when, and with what filters. */
 export const listSecurityExportAudit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => ExportInput.parse(d ?? {}))
+  .inputValidator((d) => ExportAuditFilterInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
       return { error: "Forbidden", rows: [] as SecurityExportAuditRow[], pagination: buildPagination(0, data.page, data.pageSize) };
@@ -447,16 +464,140 @@ export const listSecurityExportAudit = createServerFn({ method: "POST" })
     const { from, to } = range(data);
     let q = supabaseAdmin
       .from("security_export_audit")
-      .select("id, actor_id, export_kind, format, filters, scan_window_from, scan_window_to, row_count, duration_ms, created_at", { count: "exact" })
+      .select("id, actor_id, export_kind, format, filters, scan_window_from, scan_window_to, row_count, duration_ms, correlation_id, created_at", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(from, to);
-    if (data.search) q = q.ilike("export_kind", `%${data.search}%`);
+    if (data.kind) q = q.eq("export_kind", data.kind);
+    if (data.actor) q = q.ilike("actor_id::text", `%${data.actor}%`);
+    if (data.search) {
+      const term = data.search.replace(/[%,()]/g, "");
+      q = q.or(`export_kind.ilike.%${term}%,correlation_id.ilike.%${term}%`);
+    }
     if (data.from) q = q.gte("created_at", data.from);
     if (data.to) q = q.lte("created_at", data.to);
+    if (data.windowFrom) q = q.gte("scan_window_from", data.windowFrom);
+    if (data.windowTo) q = q.lte("scan_window_to", data.windowTo);
     const { data: rows, count, error } = await q;
     return {
       error: error?.message ?? null,
       rows: (rows ?? []).map((r) => ({ ...r, filters: (r.filters ?? {}) as Record<string, string | number | boolean | null> })) as SecurityExportAuditRow[],
       pagination: buildPagination(count ?? 0, data.page, data.pageSize),
     };
+  });
+
+// ---------------------------------------------------------------------------
+// Async export jobs
+// ---------------------------------------------------------------------------
+
+const StartJobInput = z.object({
+  dataset: z.enum(EXPORT_DATASET_VALUES),
+  format: z.enum(["csv", "json"]).default("csv"),
+  search: z.string().max(200).optional().nullable(),
+  status: z.string().max(50).optional().nullable(),
+  from: z.string().max(40).optional().nullable(),
+  to: z.string().max(40).optional().nullable(),
+});
+
+/** Queue + run an export job. Returns immediately with the finished job state. */
+export const startSecurityExportJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => StartJobInput.parse(d ?? {}))
+  .handler(async ({ data, context }): Promise<{ error: string | null; jobId: string | null }> => {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      emitSecurityEventAsync({ event: "security.export.denied", severity: "warning", attrs: { dataset: data.dataset, user_id: context.userId, mode: "async" } });
+      return { error: "Forbidden", jobId: null };
+    }
+    const correlationId = newCorrelationId();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const filters = { search: data.search ?? null, status: data.status ?? null, from: data.from ?? null, to: data.to ?? null };
+    const { data: job, error } = await supabaseAdmin
+      .from("security_export_jobs")
+      .insert({
+        requested_by: context.userId,
+        dataset: data.dataset,
+        format: data.format,
+        filters,
+        scan_window_from: data.from ?? null,
+        scan_window_to: data.to ?? null,
+        correlation_id: correlationId,
+        status: "queued",
+      })
+      .select("id")
+      .single();
+    if (error || !job) return { error: error?.message ?? "Could not queue export", jobId: null };
+
+    const { runExportJob } = await import("@/lib/security-export-jobs.server");
+    const result = await runExportJob({
+      admin: supabaseAdmin as never,
+      jobId: job.id,
+      dataset: data.dataset as ExportDataset,
+      format: data.format,
+      filters,
+    });
+
+    emitSecurityEventAsync({
+      correlationId,
+      event: result.status === "complete" ? "security.export.completed" : "security.export.failed",
+      severity: result.status === "complete" ? "info" : "error",
+      attrs: { dataset: data.dataset, mode: "async", job_id: job.id, rows: result.rowCount, bytes: result.bytes, user_id: context.userId },
+    });
+    if (result.status === "complete") {
+      await recordExportAudit({
+        actorId: context.userId,
+        dataset: data.dataset,
+        input: { page: 1, pageSize: 500, search: data.search ?? null, status: data.status ?? null, from: data.from ?? null, to: data.to ?? null },
+        rowCount: result.rowCount,
+        durationMs: 0,
+        correlationId,
+      });
+    }
+    return { error: null, jobId: job.id };
+  });
+
+/** Admin-only listing of export jobs, newest first. */
+export const listSecurityExportJobs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ page: z.number().int().min(1).default(1), pageSize: z.number().int().min(1).max(100).default(20) }).parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      return { error: "Forbidden", rows: [] as SecurityExportJob[], pagination: buildPagination(0, data.page, data.pageSize) };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const start = (data.page - 1) * data.pageSize;
+    const { data: rows, count, error } = await supabaseAdmin
+      .from("security_export_jobs")
+      .select("id, requested_by, dataset, format, filters, status, progress_rows, total_rows, result_bytes, error, correlation_id, started_at, finished_at, duration_ms, created_at", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(start, start + data.pageSize - 1);
+    return {
+      error: error?.message ?? null,
+      rows: (rows ?? []) as unknown as SecurityExportJob[],
+      pagination: buildPagination(count ?? 0, data.page, data.pageSize),
+    };
+  });
+
+/** Admin-only download of a completed job payload. */
+export const downloadSecurityExportJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ jobId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ error: string | null; dataset: string | null; format: string | null; payload: string | null }> => {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      emitSecurityEventAsync({ event: "security.export.denied", severity: "warning", attrs: { job_id: data.jobId, user_id: context.userId, mode: "download" } });
+      return { error: "Forbidden", dataset: null, format: null, payload: null };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: job, error } = await supabaseAdmin
+      .from("security_export_jobs")
+      .select("dataset, format, status, result_payload, correlation_id")
+      .eq("id", data.jobId)
+      .maybeSingle();
+    if (error) return { error: error.message, dataset: null, format: null, payload: null };
+    if (!job) return { error: "Job not found", dataset: null, format: null, payload: null };
+    if (job.status !== "complete" || !job.result_payload) return { error: `Export is ${job.status}`, dataset: job.dataset, format: job.format, payload: null };
+    emitSecurityEventAsync({
+      correlationId: job.correlation_id ?? undefined,
+      event: "security.export.downloaded",
+      attrs: { dataset: job.dataset, job_id: data.jobId, user_id: context.userId },
+    });
+    return { error: null, dataset: job.dataset, format: job.format, payload: job.result_payload };
   });
