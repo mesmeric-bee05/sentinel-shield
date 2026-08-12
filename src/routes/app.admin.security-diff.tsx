@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, CheckCircle2, AlertTriangle, ShieldAlert, RefreshCw, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { ScanDiffResponseSchema, type ScanDiffEntry, type ScanDiffResponse } fro
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { downloadCsv, downloadJson, timestampedName } from "@/lib/exports";
+import { advanceWatermark, isStale, type Watermark } from "@/lib/scan-watermark";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/security-diff")({
@@ -60,6 +61,7 @@ function ScanDiffPage() {
   const [forbidden, setForbidden] = useState<ForbiddenInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
+  const watermark = useRef<Watermark>(null);
 
   const load = async () => {
     setLoading(true);
@@ -75,6 +77,7 @@ function ScanDiffPage() {
         setDiff(EMPTY);
       } else {
         setDiff(parsed.data);
+        watermark.current = advanceWatermark(watermark.current, parsed.data.latestScanAt);
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load scan diff");
@@ -87,16 +90,50 @@ function ScanDiffPage() {
   // Auto-refresh when a new scan writes to security_findings so the resolved vs
   // remaining view never shows a stale snapshot. Debounced: a scan writes many
   // rows in a burst, and we only want one reload at the end of it.
+  //
+  // Realtime alone loses events across reconnects and browser sleep, so a
+  // watermark backfill also runs on (re)subscribe, tab focus, network return
+  // and on a slow interval: it asks the server for the newest scan timestamp
+  // and reloads when the server is ahead of what is on screen.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+
+    const scheduleReload = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { setLive(true); void load(); }, 1500);
+    };
+
+    const backfill = async () => {
+      if (cancelled || document.hidden) return;
+      const { data, error } = await supabase
+        .from("security_findings")
+        .select("last_seen_at")
+        .order("last_seen_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error || !data) return;
+      if (isStale(watermark.current, data.last_seen_at)) { setLive(true); void load(); }
+    };
+
     const channel = supabase
       .channel("security-findings-diff")
-      .on("postgres_changes", { event: "*", schema: "public", table: "security_findings" }, () => {
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => { setLive(true); load(); }, 1500);
-      })
-      .subscribe();
-    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
+      .on("postgres_changes", { event: "*", schema: "public", table: "security_findings" }, scheduleReload)
+      .subscribe((status) => { if (status === "SUBSCRIBED") void backfill(); });
+
+    const onVisible = () => { if (!document.hidden) void backfill(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onVisible);
+    const poll = setInterval(() => { void backfill(); }, 60_000);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onVisible);
+      supabase.removeChannel(channel);
+    };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, []);
 
