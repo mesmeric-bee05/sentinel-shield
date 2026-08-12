@@ -559,6 +559,7 @@ export type Database = {
       security_export_audit: {
         Row: {
           actor_id: string
+          correlation_id: string | null
           created_at: string
           duration_ms: number | null
           export_kind: string
@@ -571,6 +572,7 @@ export type Database = {
         }
         Insert: {
           actor_id: string
+          correlation_id?: string | null
           created_at?: string
           duration_ms?: number | null
           export_kind: string
@@ -583,6 +585,7 @@ export type Database = {
         }
         Update: {
           actor_id?: string
+          correlation_id?: string | null
           created_at?: string
           duration_ms?: number | null
           export_kind?: string
@@ -592,6 +595,72 @@ export type Database = {
           row_count?: number
           scan_window_from?: string | null
           scan_window_to?: string | null
+        }
+        Relationships: []
+      }
+      security_export_jobs: {
+        Row: {
+          correlation_id: string | null
+          created_at: string
+          dataset: string
+          duration_ms: number | null
+          error: string | null
+          filters: Json
+          finished_at: string | null
+          format: string
+          id: string
+          progress_rows: number
+          requested_by: string
+          result_bytes: number | null
+          result_payload: string | null
+          scan_window_from: string | null
+          scan_window_to: string | null
+          started_at: string | null
+          status: string
+          total_rows: number | null
+          updated_at: string
+        }
+        Insert: {
+          correlation_id?: string | null
+          created_at?: string
+          dataset: string
+          duration_ms?: number | null
+          error?: string | null
+          filters?: Json
+          finished_at?: string | null
+          format?: string
+          id?: string
+          progress_rows?: number
+          requested_by: string
+          result_bytes?: number | null
+          result_payload?: string | null
+          scan_window_from?: string | null
+          scan_window_to?: string | null
+          started_at?: string | null
+          status?: string
+          total_rows?: number | null
+          updated_at?: string
+        }
+        Update: {
+          correlation_id?: string | null
+          created_at?: string
+          dataset?: string
+          duration_ms?: number | null
+          error?: string | null
+          filters?: Json
+          finished_at?: string | null
+          format?: string
+          id?: string
+          progress_rows?: number
+          requested_by?: string
+          result_bytes?: number | null
+          result_payload?: string | null
+          scan_window_from?: string | null
+          scan_window_to?: string | null
+          started_at?: string | null
+          status?: string
+          total_rows?: number | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -675,6 +744,7 @@ export type Database = {
       }
       security_sync_attempts: {
         Row: {
+          correlation_id: string | null
           duration_ms: number | null
           error: string | null
           finding_count: number | null
@@ -687,6 +757,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          correlation_id?: string | null
           duration_ms?: number | null
           error?: string | null
           finding_count?: number | null
@@ -699,6 +770,7 @@ export type Database = {
           status: string
         }
         Update: {
+          correlation_id?: string | null
           duration_ms?: number | null
           error?: string | null
           finding_count?: number | null

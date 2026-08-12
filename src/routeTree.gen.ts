@@ -38,6 +38,7 @@ import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
 import { Route as AppAdminSecurityRouteImport } from './routes/app.admin.security'
 import { Route as AppAdminSecurityAuditRouteImport } from './routes/app.admin.security-audit'
 import { Route as AppAdminSecurityDiffRouteImport } from './routes/app.admin.security-diff'
+import { Route as AppAdminSecurityExportsRouteImport } from './routes/app.admin.security-exports'
 import { Route as AppAdminSecuritySyncRouteImport } from './routes/app.admin.security-sync'
 import { Route as AppAdminSeoAuditRouteImport } from './routes/app.admin.seo-audit'
 import { Route as AppRoomAppointmentIdRouteImport } from './routes/app.room.$appointmentId'
@@ -190,6 +191,11 @@ const AppAdminSecurityDiffRoute = AppAdminSecurityDiffRouteImport.update({
   path: '/security-diff',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminSecurityExportsRoute = AppAdminSecurityExportsRouteImport.update({
+  id: '/security-exports',
+  path: '/security-exports',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminSecuritySyncRoute = AppAdminSecuritySyncRouteImport.update({
   id: '/security-sync',
   path: '/security-sync',
@@ -252,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/security-audit': typeof AppAdminSecurityAuditRoute
   '/app/admin/security-diff': typeof AppAdminSecurityDiffRoute
+  '/app/admin/security-exports': typeof AppAdminSecurityExportsRoute
   '/app/admin/security-sync': typeof AppAdminSecuritySyncRoute
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
@@ -288,6 +295,7 @@ export interface FileRoutesByTo {
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/security-audit': typeof AppAdminSecurityAuditRoute
   '/app/admin/security-diff': typeof AppAdminSecurityDiffRoute
+  '/app/admin/security-exports': typeof AppAdminSecurityExportsRoute
   '/app/admin/security-sync': typeof AppAdminSecuritySyncRoute
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
@@ -326,6 +334,7 @@ export interface FileRoutesById {
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/security-audit': typeof AppAdminSecurityAuditRoute
   '/app/admin/security-diff': typeof AppAdminSecurityDiffRoute
+  '/app/admin/security-exports': typeof AppAdminSecurityExportsRoute
   '/app/admin/security-sync': typeof AppAdminSecuritySyncRoute
   '/app/admin/seo-audit': typeof AppAdminSeoAuditRoute
   '/app/room/$appointmentId': typeof AppRoomAppointmentIdRoute
@@ -365,6 +374,7 @@ export interface FileRouteTypes {
     | '/app/admin/security'
     | '/app/admin/security-audit'
     | '/app/admin/security-diff'
+    | '/app/admin/security-exports'
     | '/app/admin/security-sync'
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
@@ -401,6 +411,7 @@ export interface FileRouteTypes {
     | '/app/admin/security'
     | '/app/admin/security-audit'
     | '/app/admin/security-diff'
+    | '/app/admin/security-exports'
     | '/app/admin/security-sync'
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
@@ -438,6 +449,7 @@ export interface FileRouteTypes {
     | '/app/admin/security'
     | '/app/admin/security-audit'
     | '/app/admin/security-diff'
+    | '/app/admin/security-exports'
     | '/app/admin/security-sync'
     | '/app/admin/seo-audit'
     | '/app/room/$appointmentId'
@@ -664,6 +676,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminSecurityDiffRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/app/admin/security-exports': {
+      id: '/app/admin/security-exports'
+      path: '/security-exports'
+      fullPath: '/app/admin/security-exports'
+      preLoaderRoute: typeof AppAdminSecurityExportsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/security-sync': {
       id: '/app/admin/security-sync'
       path: '/security-sync'
@@ -735,6 +754,7 @@ interface AppAdminRouteChildren {
   AppAdminSecurityRoute: typeof AppAdminSecurityRoute
   AppAdminSecurityAuditRoute: typeof AppAdminSecurityAuditRoute
   AppAdminSecurityDiffRoute: typeof AppAdminSecurityDiffRoute
+  AppAdminSecurityExportsRoute: typeof AppAdminSecurityExportsRoute
   AppAdminSecuritySyncRoute: typeof AppAdminSecuritySyncRoute
   AppAdminSeoAuditRoute: typeof AppAdminSeoAuditRoute
   AppAdminSeoGscRoute: typeof AppAdminSeoGscRoute
@@ -754,6 +774,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminSecurityRoute: AppAdminSecurityRoute,
   AppAdminSecurityAuditRoute: AppAdminSecurityAuditRoute,
   AppAdminSecurityDiffRoute: AppAdminSecurityDiffRoute,
+  AppAdminSecurityExportsRoute: AppAdminSecurityExportsRoute,
   AppAdminSecuritySyncRoute: AppAdminSecuritySyncRoute,
   AppAdminSeoAuditRoute: AppAdminSeoAuditRoute,
   AppAdminSeoGscRoute: AppAdminSeoGscRoute,
@@ -803,13 +824,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
