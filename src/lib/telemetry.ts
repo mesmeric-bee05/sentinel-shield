@@ -11,6 +11,8 @@ export type TelemetrySeverity = "info" | "warning" | "error";
 
 export type SecurityEvent = {
   event: string;
+  /** Stable ID linking this log line to the Sentry event and any DB row that records it. */
+  correlationId?: string;
   severity?: TelemetrySeverity;
   attrs?: Record<string, string | number | boolean | null | undefined>;
   message?: string;
@@ -18,6 +20,7 @@ export type SecurityEvent = {
 
 export type StructuredLogLine = {
   ts: string;
+  correlation_id: string;
   channel: "security";
   event: string;
   severity: TelemetrySeverity;
@@ -34,11 +37,17 @@ function cleanAttrs(attrs: SecurityEvent["attrs"]): Record<string, string | numb
   return out;
 }
 
+/** Generate a Sentry-compatible correlation ID (32 lowercase hex chars). */
+export function newCorrelationId(): string {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+
 /** Pure formatter — shared by the emitter and the contract tests. */
-export function formatSecurityEvent(e: SecurityEvent, now = new Date()): StructuredLogLine {
+export function formatSecurityEvent(e: SecurityEvent, now = new Date(), correlationId = newCorrelationId()): StructuredLogLine {
   const severity = e.severity ?? "info";
   return {
     ts: now.toISOString(),
+    correlation_id: e.correlationId ?? correlationId,
     channel: "security",
     event: e.event,
     severity,
@@ -104,14 +113,14 @@ export async function emitSecurityEvent(e: SecurityEvent, opts: { fetchImpl?: ty
   const doFetch = opts.fetchImpl ?? fetch;
   const { url, headers } = sentryStoreTarget(dsn);
   const body = {
-    event_id: crypto.randomUUID().replace(/-/g, ""),
+    event_id: line.correlation_id,
     timestamp: line.ts,
     platform: "javascript",
     level: SEVERITY_TO_SENTRY[line.severity],
     logger: "security",
     environment: envVar("SENTRY_ENVIRONMENT") ?? envVar("NODE_ENV") ?? "production",
     message: { formatted: `${line.event}: ${line.message}` },
-    tags: { event: line.event, channel: "security" },
+    tags: { event: line.event, channel: "security", correlation_id: line.correlation_id },
     extra: line.attrs,
   };
   try {
