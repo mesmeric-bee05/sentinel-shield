@@ -26,6 +26,7 @@ import { Route as AppChwRouteImport } from './routes/app.chw'
 import { Route as AppDiscoverRouteImport } from './routes/app.discover'
 import { Route as AppProviderRouteImport } from './routes/app.provider'
 import { Route as ApiPublicSecurityExportDownloadRouteImport } from './routes/api/public/security-export-download'
+import { Route as ApiPublicSecurityRetentionCleanupRouteImport } from './routes/api/public/security-retention-cleanup'
 import { Route as ApiPublicSecuritySyncRouteImport } from './routes/api/public/security-sync'
 import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
 import { Route as AppAdminChwRouteImport } from './routes/app.admin.chw'
@@ -131,6 +132,12 @@ const ApiPublicSecurityExportDownloadRoute =
   ApiPublicSecurityExportDownloadRouteImport.update({
     id: '/api/public/security-export-download',
     path: '/api/public/security-export-download',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicSecurityRetentionCleanupRoute =
+  ApiPublicSecurityRetentionCleanupRouteImport.update({
+    id: '/api/public/security-retention-cleanup',
+    path: '/api/public/security-retention-cleanup',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicSecuritySyncRoute = ApiPublicSecuritySyncRouteImport.update({
@@ -253,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
   '/api/public/security-export-download': typeof ApiPublicSecurityExportDownloadRoute
+  '/api/public/security-retention-cleanup': typeof ApiPublicSecurityRetentionCleanupRoute
   '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
@@ -291,6 +299,7 @@ export interface FileRoutesByTo {
   '/app/provider': typeof AppProviderRoute
   '/app': typeof AppIndexRoute
   '/api/public/security-export-download': typeof ApiPublicSecurityExportDownloadRoute
+  '/api/public/security-retention-cleanup': typeof ApiPublicSecurityRetentionCleanupRoute
   '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
@@ -331,6 +340,7 @@ export interface FileRoutesById {
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
   '/api/public/security-export-download': typeof ApiPublicSecurityExportDownloadRoute
+  '/api/public/security-retention-cleanup': typeof ApiPublicSecurityRetentionCleanupRoute
   '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
   '/app/admin/chw': typeof AppAdminChwRoute
@@ -372,6 +382,7 @@ export interface FileRouteTypes {
     | '/app/provider'
     | '/app/'
     | '/api/public/security-export-download'
+    | '/api/public/security-retention-cleanup'
     | '/api/public/security-sync'
     | '/app/admin/audit'
     | '/app/admin/chw'
@@ -410,6 +421,7 @@ export interface FileRouteTypes {
     | '/app/provider'
     | '/app'
     | '/api/public/security-export-download'
+    | '/api/public/security-retention-cleanup'
     | '/api/public/security-sync'
     | '/app/admin/audit'
     | '/app/admin/chw'
@@ -449,6 +461,7 @@ export interface FileRouteTypes {
     | '/app/provider'
     | '/app/'
     | '/api/public/security-export-download'
+    | '/api/public/security-retention-cleanup'
     | '/api/public/security-sync'
     | '/app/admin/audit'
     | '/app/admin/chw'
@@ -482,6 +495,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiPublicSecurityExportDownloadRoute: typeof ApiPublicSecurityExportDownloadRoute
+  ApiPublicSecurityRetentionCleanupRoute: typeof ApiPublicSecurityRetentionCleanupRoute
   ApiPublicSecuritySyncRoute: typeof ApiPublicSecuritySyncRoute
 }
 
@@ -604,6 +618,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/security-export-download'
       fullPath: '/api/public/security-export-download'
       preLoaderRoute: typeof ApiPublicSecurityExportDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/security-retention-cleanup': {
+      id: '/api/public/security-retention-cleanup'
+      path: '/api/public/security-retention-cleanup'
+      fullPath: '/api/public/security-retention-cleanup'
+      preLoaderRoute: typeof ApiPublicSecurityRetentionCleanupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/security-sync': {
@@ -841,6 +862,8 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiPublicSecurityExportDownloadRoute: ApiPublicSecurityExportDownloadRoute,
+  ApiPublicSecurityRetentionCleanupRoute:
+    ApiPublicSecurityRetentionCleanupRoute,
   ApiPublicSecuritySyncRoute: ApiPublicSecuritySyncRoute,
 }
 export const routeTree = rootRouteImport
