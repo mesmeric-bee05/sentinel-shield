@@ -5,7 +5,7 @@
 // it verifies the caller itself before doing any deletion.
 import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "crypto";
-import { emitSecurityEvent } from "@/lib/telemetry";
+import { emitSecurityEventAsync as emitSecurityEvent } from "@/lib/telemetry";
 
 function keyMatches(provided: string | null): boolean {
   const expected = process.env['SUPABASE_ANON_KEY'] ?? process.env['SUPABASE_PUBLISHABLE_KEY'] ?? "";

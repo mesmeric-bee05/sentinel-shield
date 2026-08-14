@@ -10,7 +10,7 @@
 //   4. the job is complete and still holds a payload
 import { createFileRoute } from "@tanstack/react-router";
 import { verifyDownloadToken } from "@/lib/security-export-tokens.server";
-import { emitSecurityEvent } from "@/lib/telemetry";
+import { emitSecurityEventAsync as emitSecurityEvent } from "@/lib/telemetry";
 
 function deny(reason: string, status = 403) {
   emitSecurityEvent({ event: "security.export.download_denied", severity: "warning", attrs: { reason } });
