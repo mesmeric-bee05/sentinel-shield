@@ -3,12 +3,24 @@
 
 export type ExportColumn<T> = { key: string; label: string; value: (row: T) => string | number | null | undefined };
 
+// Spreadsheet formula-injection guard: Excel/Sheets treat a cell starting with
+// =, +, -, @, TAB or CR as a formula. Export text can originate from the
+// security-sync webhook or free-text audit notes, so neutralize it with a
+// leading apostrophe before normal CSV quoting.
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
+
+export function neutralizeFormula(s: string): string {
+  return FORMULA_TRIGGER.test(s) ? `'${s}` : s;
+}
+
 function csvEscape(v: string | number | null | undefined): string {
   if (v === null || v === undefined) return "";
-  const s = String(v);
+  // Numbers are emitted verbatim: they can never be interpreted as a formula.
+  const s = typeof v === "number" ? String(v) : neutralizeFormula(String(v));
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
+
 
 export function toCsv<T>(rows: T[], cols: ExportColumn<T>[]): string {
   const header = cols.map((c) => csvEscape(c.label)).join(",");
