@@ -618,3 +618,149 @@ export const getLatestScanAt = createServerFn({ method: "POST" })
       .maybeSingle();
     return { error: error?.message ?? null, latestScanAt: data?.last_seen_at ?? null };
   });
+
+// ---------------------------------------------------------------------------
+// Retry + signed downloads
+// ---------------------------------------------------------------------------
+
+const MAX_ATTEMPTS = 5;
+
+/** Re-run a failed export job with the same dataset/format/filters. */
+export const retrySecurityExportJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ jobId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ error: string | null; status: string | null; attempts: number }> => {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      emitSecurityEventAsync({ event: "security.export.denied", severity: "warning", attrs: { job_id: data.jobId, user_id: context.userId, mode: "retry" } });
+      return { error: "Forbidden", status: null, attempts: 0 };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const db = supabaseAdmin as unknown as { from: (t: string) => any };
+    const { data: job, error } = await db
+      .from("security_export_jobs")
+      .select("id, dataset, format, filters, status, error, attempt_count, attempt_history, correlation_id")
+      .eq("id", data.jobId)
+      .maybeSingle();
+    if (error) return { error: error.message, status: null, attempts: 0 };
+    if (!job) return { error: "Job not found", status: null, attempts: 0 };
+    if (job.status !== "failed") return { error: `Only failed jobs can be retried (this one is ${job.status})`, status: job.status, attempts: job.attempt_count ?? 1 };
+
+    const attempts = (job.attempt_count ?? 1) + 1;
+    if (attempts > MAX_ATTEMPTS) return { error: `Retry limit reached (${MAX_ATTEMPTS} attempts)`, status: job.status, attempts: job.attempt_count ?? 1 };
+
+    const history = Array.isArray(job.attempt_history) ? job.attempt_history : [];
+    history.push({ attempt: job.attempt_count ?? 1, error: job.error ?? null, at: new Date().toISOString() });
+
+    await db.from("security_export_jobs").update({
+      status: "queued",
+      error: null,
+      result_payload: null,
+      result_bytes: null,
+      progress_rows: 0,
+      attempt_count: attempts,
+      attempt_history: history,
+      download_token_hash: null,
+      download_token_expires_at: null,
+      download_consumed_at: null,
+    }).eq("id", job.id);
+
+    const { runExportJob } = await import("@/lib/security-export-jobs.server");
+    const result = await runExportJob({
+      admin: supabaseAdmin as never,
+      jobId: job.id,
+      dataset: job.dataset as ExportDataset,
+      format: (job.format === "json" ? "json" : "csv") as "csv" | "json",
+      filters: (job.filters ?? {}) as { search?: string | null; status?: string | null; from?: string | null; to?: string | null },
+    });
+
+    emitSecurityEventAsync({
+      correlationId: job.correlation_id ?? undefined,
+      event: result.status === "complete" ? "security.export.retry_completed" : "security.export.retry_failed",
+      severity: result.status === "complete" ? "info" : "error",
+      attrs: { job_id: job.id, dataset: job.dataset, attempt: attempts, user_id: context.userId, rows: result.rowCount },
+    });
+    return { error: result.error, status: result.status, attempts };
+  });
+
+/**
+ * Mint a single-use, time-limited download URL for a completed job. The
+ * payload itself never travels through this response — only a signed link the
+ * caller's browser can redeem once, within the TTL.
+ */
+export const mintSecurityExportDownload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ jobId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ error: string | null; url: string | null; expiresAt: string | null }> => {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      emitSecurityEventAsync({ event: "security.export.denied", severity: "warning", attrs: { job_id: data.jobId, user_id: context.userId, mode: "mint" } });
+      return { error: "Forbidden", url: null, expiresAt: null };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const db = supabaseAdmin as unknown as { from: (t: string) => any };
+    const { data: job, error } = await db
+      .from("security_export_jobs")
+      .select("id, status, result_payload, correlation_id, dataset")
+      .eq("id", data.jobId)
+      .maybeSingle();
+    if (error) return { error: error.message, url: null, expiresAt: null };
+    if (!job) return { error: "Job not found", url: null, expiresAt: null };
+    if (job.status !== "complete" || !job.result_payload) return { error: `Export is ${job.status}`, url: null, expiresAt: null };
+
+    const { mintDownloadToken } = await import("@/lib/security-export-tokens.server");
+    const minted = mintDownloadToken(job.id, context.userId);
+    const { error: patchError } = await db.from("security_export_jobs").update({
+      download_token_hash: minted.tokenHash,
+      download_token_expires_at: minted.expiresAt,
+      download_token_actor: context.userId,
+      download_consumed_at: null,
+    }).eq("id", job.id);
+    if (patchError) return { error: patchError.message, url: null, expiresAt: null };
+
+    emitSecurityEventAsync({
+      correlationId: job.correlation_id ?? undefined,
+      event: "security.export.link_minted",
+      attrs: { job_id: job.id, dataset: job.dataset, user_id: context.userId, expires_at: minted.expiresAt },
+    });
+    return { error: null, url: `/api/public/security-export-download?token=${encodeURIComponent(minted.token)}`, expiresAt: minted.expiresAt };
+  });
+
+/**
+ * Targeted rescan of a single finding. For `csv_export_formula_inj` the check
+ * runs a canary payload through the shared CSV serializer and asserts every
+ * spreadsheet trigger is neutralized; the outcome updates the finding and is
+ * written to `security_finding_audit`.
+ */
+export const rescanSecurityFinding = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ internalId: z.string().min(1).max(200) }).parse(d))
+  .handler(async ({ data, context }): Promise<{ error: string | null; status: string | null; detail: string | null }> => {
+    if (!(await assertAdmin(() => context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" })))) {
+      return { error: "Forbidden", status: null, detail: null };
+    }
+    const { runFindingCheck } = await import("@/lib/security-rescan.server");
+    const outcome = runFindingCheck(data.internalId);
+    if (!outcome.supported) return { error: `No automated recheck available for ${data.internalId}`, status: null, detail: null };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const db = supabaseAdmin as unknown as { from: (t: string) => any };
+    const status = outcome.pass ? "fixed" : "open";
+    await db.from("security_findings").update({ status, last_seen_at: new Date().toISOString(), rationale: outcome.detail }).eq("internal_id", data.internalId);
+    await db.from("security_finding_audit").insert({
+      internal_id: data.internalId,
+      scanner_name: "app_rescan",
+      resolution: outcome.pass ? "fixed" : "reopened",
+      resolved_by: context.userId,
+      affected_endpoints: outcome.endpoints,
+      affected_queries: [],
+      notes: outcome.detail,
+    });
+    emitSecurityEventAsync({
+      event: outcome.pass ? "security.finding.rescan_passed" : "security.finding.rescan_failed",
+      severity: outcome.pass ? "info" : "error",
+      attrs: { internal_id: data.internalId, user_id: context.userId },
+    });
+    return { error: null, status, detail: outcome.detail };
+  });
