@@ -65,6 +65,24 @@ export function ExportAuditPanel() {
   const apply = () => { setPage(1); setApplied(filters); };
   const clear = () => { setFilters(EMPTY); setPage(1); setApplied(EMPTY); };
 
+  // Applying a preset sets every field at once and immediately re-runs the
+  // query from page 1 (the effect on `applied` triggers the reload).
+  const day = (v: string | null) => (v ? v.slice(0, 10) : "");
+  const applyPreset = (p: { dataset: string | null; actor_filter: string | null; date_from: string | null; date_to: string | null; scan_window_from: string | null; scan_window_to: string | null }) => {
+    const next: Filters = {
+      actor: p.actor_filter ?? "",
+      kind: p.dataset ?? "",
+      from: day(p.date_from),
+      to: day(p.date_to),
+      windowFrom: day(p.scan_window_from),
+      windowTo: day(p.scan_window_to),
+    };
+    setFilters(next);
+    setPage(1);
+    setApplied(next);
+  };
+
+
   return (
     <section className="rounded-2xl border border-border bg-card shadow-card overflow-hidden mt-6">
       <header className="px-5 py-3 border-b border-border/60 flex items-center gap-2">
