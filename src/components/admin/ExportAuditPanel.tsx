@@ -94,6 +94,19 @@ export function ExportAuditPanel() {
         </Button>
       </header>
 
+      <ExportPresetBar
+        current={{
+          dataset: filters.kind || null,
+          actor_filter: filters.actor || null,
+          date_from: filters.from || null,
+          date_to: filters.to || null,
+          scan_window_from: filters.windowFrom || null,
+          scan_window_to: filters.windowTo || null,
+        }}
+        onApply={applyPreset}
+      />
+
+
       <div className="px-5 py-3 border-b border-border/60 grid gap-2 md:grid-cols-6 text-xs">
         <Input className="h-8 text-xs" placeholder="Actor ID…" value={filters.actor} onChange={(e) => set("actor")(e.target.value)} />
         <select
