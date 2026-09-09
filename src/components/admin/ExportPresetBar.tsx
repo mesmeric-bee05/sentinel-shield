@@ -43,7 +43,7 @@ export function ExportPresetBar({
 
   const refresh = async () => {
     try {
-      const res = await listFn({ data: {} });
+      const res = await listFn({ data: undefined });
       if (res.error) { setError(res.error); return; }
       setError(null);
       setPresets(res.presets);
