@@ -14,6 +14,7 @@ import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { EXPORT_DATASETS, datasetLabel } from "@/lib/security-export-datasets";
 import { sentrySearchUrl } from "@/lib/sentry-link";
+import { ExportPresetBar } from "@/components/admin/ExportPresetBar";
 
 const PAGE_SIZE = 20;
 
@@ -64,6 +65,24 @@ export function ExportAuditPanel() {
   const apply = () => { setPage(1); setApplied(filters); };
   const clear = () => { setFilters(EMPTY); setPage(1); setApplied(EMPTY); };
 
+  // Applying a preset sets every field at once and immediately re-runs the
+  // query from page 1 (the effect on `applied` triggers the reload).
+  const day = (v: string | null) => (v ? v.slice(0, 10) : "");
+  const applyPreset = (p: { dataset: string | null; actor_filter: string | null; date_from: string | null; date_to: string | null; scan_window_from: string | null; scan_window_to: string | null }) => {
+    const next: Filters = {
+      actor: p.actor_filter ?? "",
+      kind: p.dataset ?? "",
+      from: day(p.date_from),
+      to: day(p.date_to),
+      windowFrom: day(p.scan_window_from),
+      windowTo: day(p.scan_window_to),
+    };
+    setFilters(next);
+    setPage(1);
+    setApplied(next);
+  };
+
+
   return (
     <section className="rounded-2xl border border-border bg-card shadow-card overflow-hidden mt-6">
       <header className="px-5 py-3 border-b border-border/60 flex items-center gap-2">
@@ -74,6 +93,19 @@ export function ExportAuditPanel() {
           <RefreshCw className="w-3 h-3 mr-1" />Refresh
         </Button>
       </header>
+
+      <ExportPresetBar
+        current={{
+          dataset: filters.kind || null,
+          actor_filter: filters.actor || null,
+          date_from: filters.from || null,
+          date_to: filters.to || null,
+          scan_window_from: filters.windowFrom || null,
+          scan_window_to: filters.windowTo || null,
+        }}
+        onApply={applyPreset}
+      />
+
 
       <div className="px-5 py-3 border-b border-border/60 grid gap-2 md:grid-cols-6 text-xs">
         <Input className="h-8 text-xs" placeholder="Actor ID…" value={filters.actor} onChange={(e) => set("actor")(e.target.value)} />

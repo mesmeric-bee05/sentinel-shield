@@ -598,11 +598,67 @@ export type Database = {
         }
         Relationships: []
       }
+      security_export_filter_presets: {
+        Row: {
+          actor_filter: string | null
+          created_at: string
+          dataset: string | null
+          date_from: string | null
+          date_to: string | null
+          id: string
+          is_shared: boolean
+          name: string
+          owner_id: string
+          scan_window_from: string | null
+          scan_window_to: string | null
+          search: string | null
+          status_filter: string | null
+          updated_at: string
+        }
+        Insert: {
+          actor_filter?: string | null
+          created_at?: string
+          dataset?: string | null
+          date_from?: string | null
+          date_to?: string | null
+          id?: string
+          is_shared?: boolean
+          name: string
+          owner_id: string
+          scan_window_from?: string | null
+          scan_window_to?: string | null
+          search?: string | null
+          status_filter?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actor_filter?: string | null
+          created_at?: string
+          dataset?: string | null
+          date_from?: string | null
+          date_to?: string | null
+          id?: string
+          is_shared?: boolean
+          name?: string
+          owner_id?: string
+          scan_window_from?: string | null
+          scan_window_to?: string | null
+          search?: string | null
+          status_filter?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       security_export_jobs: {
         Row: {
+          attempt_count: number
+          attempt_history: Json
           correlation_id: string | null
           created_at: string
           dataset: string
+          download_consumed_at: string | null
+          download_token_expires_at: string | null
+          download_token_hash: string | null
           duration_ms: number | null
           error: string | null
           filters: Json
@@ -621,9 +677,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attempt_count?: number
+          attempt_history?: Json
           correlation_id?: string | null
           created_at?: string
           dataset: string
+          download_consumed_at?: string | null
+          download_token_expires_at?: string | null
+          download_token_hash?: string | null
           duration_ms?: number | null
           error?: string | null
           filters?: Json
@@ -642,9 +703,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attempt_count?: number
+          attempt_history?: Json
           correlation_id?: string | null
           created_at?: string
           dataset?: string
+          download_consumed_at?: string | null
+          download_token_expires_at?: string | null
+          download_token_hash?: string | null
           duration_ms?: number | null
           error?: string | null
           filters?: Json
@@ -738,6 +804,69 @@ export type Database = {
           severity?: string
           status?: string
           title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      security_retention_runs: {
+        Row: {
+          cleared_payloads: number
+          created_at: string
+          dataset: string
+          deleted_rows: number
+          duration_ms: number | null
+          error: string | null
+          id: string
+        }
+        Insert: {
+          cleared_payloads?: number
+          created_at?: string
+          dataset: string
+          deleted_rows?: number
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+        }
+        Update: {
+          cleared_payloads?: number
+          created_at?: string
+          dataset?: string
+          deleted_rows?: number
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      security_retention_settings: {
+        Row: {
+          created_at: string
+          dataset: string
+          id: string
+          last_deleted_count: number
+          last_run_at: string | null
+          payload_retention_days: number
+          retention_days: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dataset: string
+          id?: string
+          last_deleted_count?: number
+          last_run_at?: string | null
+          payload_retention_days?: number
+          retention_days?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dataset?: string
+          id?: string
+          last_deleted_count?: number
+          last_run_at?: string | null
+          payload_retention_days?: number
+          retention_days?: number
           updated_at?: string
         }
         Relationships: []
@@ -1089,12 +1218,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1118,11 +1247,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1143,11 +1272,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1168,11 +1297,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1185,11 +1314,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
