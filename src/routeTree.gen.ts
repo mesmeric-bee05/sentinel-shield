@@ -36,6 +36,7 @@ import { Route as AppAdminEmailHealthRouteImport } from './routes/app.admin.emai
 import { Route as AppAdminEmailPreviewRouteImport } from './routes/app.admin.email-preview'
 import { Route as AppAdminGeoRouteImport } from './routes/app.admin.geo'
 import { Route as AppAdminNotificationsRouteImport } from './routes/app.admin.notifications'
+import { Route as AppAdminRetentionRouteImport } from './routes/app.admin.retention'
 import { Route as AppAdminRolesRouteImport } from './routes/app.admin.roles'
 import { Route as AppAdminSecurityRouteImport } from './routes/app.admin.security'
 import { Route as AppAdminSecurityAuditRouteImport } from './routes/app.admin.security-audit'
@@ -185,6 +186,11 @@ const AppAdminNotificationsRoute = AppAdminNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminRetentionRoute = AppAdminRetentionRouteImport.update({
+  id: '/retention',
+  path: '/retention',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminRolesRoute = AppAdminRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -270,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/app/admin/email-preview': typeof AppAdminEmailPreviewRoute
   '/app/admin/geo': typeof AppAdminGeoRoute
   '/app/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
+  '/app/admin/retention': typeof AppAdminRetentionRoute
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/security-audit': typeof AppAdminSecurityAuditRoute
@@ -309,6 +316,7 @@ export interface FileRoutesByTo {
   '/app/admin/email-preview': typeof AppAdminEmailPreviewRoute
   '/app/admin/geo': typeof AppAdminGeoRoute
   '/app/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
+  '/app/admin/retention': typeof AppAdminRetentionRoute
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/security-audit': typeof AppAdminSecurityAuditRoute
@@ -350,6 +358,7 @@ export interface FileRoutesById {
   '/app/admin/email-preview': typeof AppAdminEmailPreviewRoute
   '/app/admin/geo': typeof AppAdminGeoRoute
   '/app/admin/notifications': typeof AppAdminNotificationsRouteWithChildren
+  '/app/admin/retention': typeof AppAdminRetentionRoute
   '/app/admin/roles': typeof AppAdminRolesRoute
   '/app/admin/security': typeof AppAdminSecurityRoute
   '/app/admin/security-audit': typeof AppAdminSecurityAuditRoute
@@ -392,6 +401,7 @@ export interface FileRouteTypes {
     | '/app/admin/email-preview'
     | '/app/admin/geo'
     | '/app/admin/notifications'
+    | '/app/admin/retention'
     | '/app/admin/roles'
     | '/app/admin/security'
     | '/app/admin/security-audit'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/app/admin/email-preview'
     | '/app/admin/geo'
     | '/app/admin/notifications'
+    | '/app/admin/retention'
     | '/app/admin/roles'
     | '/app/admin/security'
     | '/app/admin/security-audit'
@@ -471,6 +482,7 @@ export interface FileRouteTypes {
     | '/app/admin/email-preview'
     | '/app/admin/geo'
     | '/app/admin/notifications'
+    | '/app/admin/retention'
     | '/app/admin/roles'
     | '/app/admin/security'
     | '/app/admin/security-audit'
@@ -690,6 +702,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminNotificationsRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/app/admin/retention': {
+      id: '/app/admin/retention'
+      path: '/retention'
+      fullPath: '/app/admin/retention'
+      preLoaderRoute: typeof AppAdminRetentionRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/roles': {
       id: '/app/admin/roles'
       path: '/roles'
@@ -792,6 +811,7 @@ interface AppAdminRouteChildren {
   AppAdminEmailPreviewRoute: typeof AppAdminEmailPreviewRoute
   AppAdminGeoRoute: typeof AppAdminGeoRoute
   AppAdminNotificationsRoute: typeof AppAdminNotificationsRouteWithChildren
+  AppAdminRetentionRoute: typeof AppAdminRetentionRoute
   AppAdminRolesRoute: typeof AppAdminRolesRoute
   AppAdminSecurityRoute: typeof AppAdminSecurityRoute
   AppAdminSecurityAuditRoute: typeof AppAdminSecurityAuditRoute
@@ -812,6 +832,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminEmailPreviewRoute: AppAdminEmailPreviewRoute,
   AppAdminGeoRoute: AppAdminGeoRoute,
   AppAdminNotificationsRoute: AppAdminNotificationsRouteWithChildren,
+  AppAdminRetentionRoute: AppAdminRetentionRoute,
   AppAdminRolesRoute: AppAdminRolesRoute,
   AppAdminSecurityRoute: AppAdminSecurityRoute,
   AppAdminSecurityAuditRoute: AppAdminSecurityAuditRoute,

@@ -566,7 +566,10 @@ export const listSecurityExportJobs = createServerFn({ method: "POST" })
     const start = (data.page - 1) * data.pageSize;
     const { data: rows, count, error } = await supabaseAdmin
       .from("security_export_jobs")
-      .select("id, requested_by, dataset, format, filters, status, progress_rows, total_rows, result_bytes, error, correlation_id, started_at, finished_at, duration_ms, created_at", { count: "exact" })
+      .select(
+        "id, requested_by, dataset, format, filters, status, progress_rows, total_rows, result_bytes, error, correlation_id, started_at, finished_at, duration_ms, created_at, attempt_count, attempt_history, download_token_expires_at",
+        { count: "exact" },
+      )
       .order("created_at", { ascending: false })
       .range(start, start + data.pageSize - 1);
     return {

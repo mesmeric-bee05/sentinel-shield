@@ -34,4 +34,7 @@ export type SecurityExportJob = {
   finished_at: string | null;
   duration_ms: number | null;
   created_at: string;
+  attempt_count?: number | null;
+  attempt_history?: Array<{ attempt?: number; error?: string | null; at?: string }> | null;
+  download_token_expires_at?: string | null;
 };
