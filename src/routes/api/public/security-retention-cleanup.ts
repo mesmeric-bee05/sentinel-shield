@@ -37,7 +37,13 @@ export const Route = createFileRoute("/api/public/security-retention-cleanup")({
         emitSecurityEvent({
           event: result.error ? "security.retention.failed" : "security.retention.completed",
           severity: result.error ? "error" : "info",
-          attrs: { source: "cron", ...result },
+          attrs: {
+            source: "cron",
+            deleted_rows: result.deleted_rows,
+            cleared_payloads: result.cleared_payloads,
+            duration_ms: result.duration_ms,
+            error: result.error,
+          },
         });
 
         return new Response(JSON.stringify(result), {
