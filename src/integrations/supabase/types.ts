@@ -657,6 +657,7 @@ export type Database = {
           created_at: string
           dataset: string
           download_consumed_at: string | null
+          download_token_actor: string | null
           download_token_expires_at: string | null
           download_token_hash: string | null
           duration_ms: number | null
@@ -683,6 +684,7 @@ export type Database = {
           created_at?: string
           dataset: string
           download_consumed_at?: string | null
+          download_token_actor?: string | null
           download_token_expires_at?: string | null
           download_token_hash?: string | null
           duration_ms?: number | null
@@ -709,6 +711,7 @@ export type Database = {
           created_at?: string
           dataset?: string
           download_consumed_at?: string | null
+          download_token_actor?: string | null
           download_token_expires_at?: string | null
           download_token_hash?: string | null
           duration_ms?: number | null

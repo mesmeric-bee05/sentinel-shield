@@ -1,0 +1,1 @@
+ALTER TABLE public.security_export_jobs ADD COLUMN IF NOT EXISTS download_token_actor uuid;
