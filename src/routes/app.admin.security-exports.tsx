@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, RefreshCw, Download, Play, ExternalLink } from "lucide-react";
+import { Loader2, RefreshCw, Download, Play, ExternalLink, RotateCcw, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "./app";
 import { PermissionDeniedCard } from "@/components/admin/PermissionDeniedCard";
 import { reasonFromResult, type ForbiddenInfo } from "@/lib/permission";
-import { startSecurityExportJob, listSecurityExportJobs, downloadSecurityExportJob } from "@/lib/security.functions";
+import { startSecurityExportJob, listSecurityExportJobs, downloadSecurityExportJob, retrySecurityExportJob, mintSecurityExportDownload } from "@/lib/security.functions";
+import { ExportPresetBar } from "@/components/admin/ExportPresetBar";
 import { EXPORT_DATASETS, datasetLabel, type SecurityExportJob } from "@/lib/security-export-datasets";
 import { sentrySearchUrl } from "@/lib/sentry-link";
 import { timestampedName } from "@/lib/exports";
@@ -28,6 +29,8 @@ export const Route = createFileRoute("/app/admin/security-exports")({
   }),
   component: ExportJobsPage,
 });
+
+const MAX_ATTEMPTS = 5;
 
 const STATUS_TONE: Record<string, string> = {
   queued: "bg-muted text-muted-foreground border-border",
@@ -52,6 +55,8 @@ function ExportJobsPage() {
   const startFn = useServerFn(startSecurityExportJob);
   const listFn = useServerFn(listSecurityExportJobs);
   const downloadFn = useServerFn(downloadSecurityExportJob);
+  const retryFn = useServerFn(retrySecurityExportJob);
+  const mintFn = useServerFn(mintSecurityExportDownload);
 
   const [jobs, setJobs] = useState<SecurityExportJob[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +67,7 @@ function ExportJobsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [search, setSearch] = useState("");
+  const [busyJob, setBusyJob] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -123,11 +129,56 @@ function ExportJobsPage() {
     }
   };
 
+  const retry = async (job: SecurityExportJob) => {
+    setBusyJob(job.id);
+    try {
+      const res = await retryFn({ data: { jobId: job.id } });
+      const d = reasonFromResult(res);
+      if (d) { setDenied(d); return; }
+      if (res.error) toast.error(res.error);
+      else toast.success(`Retry ${res.attempts} ${res.status === "complete" ? "completed" : "finished"}.`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Retry failed");
+    } finally {
+      setBusyJob(null);
+    }
+  };
+
+  // Preferred download path: a single-use link that expires in 5 minutes. If
+  // minting is unavailable we fall back to the inline payload transfer.
+  const signedDownload = async (job: SecurityExportJob) => {
+    setBusyJob(job.id);
+    try {
+      const res = await mintFn({ data: { jobId: job.id } });
+      const d = reasonFromResult(res);
+      if (d) { setDenied(d); return; }
+      if (res.error || !res.url) { toast.message("Signed link unavailable — downloading directly."); await download(job); return; }
+      window.location.href = res.url;
+      toast.success("Download link opened (valid for 5 minutes, single use).");
+      await load();
+    } catch {
+      await download(job);
+    } finally {
+      setBusyJob(null);
+    }
+  };
+
   if (denied) return <div className="p-10"><PermissionDeniedCard info={denied} onRetry={load} /></div>;
 
   return (
     <div className="p-10 max-w-6xl mx-auto">
       <PageHeader title="Export jobs" sub="Queue a large security export, watch its progress, and download the file once the job completes." />
+
+      <ExportPresetBar
+        current={{ dataset, actor_filter: null, scan_window_from: null, scan_window_to: null, date_from: from || null, date_to: to || null }}
+        onApply={(p) => {
+          if (p.dataset) setDataset(p.dataset);
+          setFrom(p.date_from ?? "");
+          setTo(p.date_to ?? "");
+          setSearch(p.search ?? "");
+        }}
+      />
 
       <section className="rounded-2xl border border-border bg-card shadow-card p-5 mb-6 grid gap-3 md:grid-cols-6 items-end text-xs">
         <label className="grid gap-1 md:col-span-2">
@@ -179,6 +230,7 @@ function ExportJobsPage() {
                   <th className="text-left py-2 px-3">Status</th>
                   <th className="text-left py-2 px-3">Progress</th>
                   <th className="text-left py-2 px-3">Size</th>
+                  <th className="text-left py-2 px-3">Attempts</th>
                   <th className="text-left py-2 px-3">Event</th>
                   <th className="text-left py-2 px-3"></th>
                 </tr>
@@ -186,6 +238,9 @@ function ExportJobsPage() {
               <tbody>
                 {jobs.map((j) => {
                   const link = sentrySearchUrl(j.correlation_id);
+                  const attempts = j.attempt_count ?? 1;
+                  const history = Array.isArray(j.attempt_history) ? j.attempt_history : [];
+                  const busy = busyJob === j.id;
                   return (
                     <tr key={j.id} className="border-t border-border/60 align-top">
                       <td className="py-2 px-3 whitespace-nowrap">{new Date(j.created_at).toLocaleString()}</td>
@@ -197,6 +252,21 @@ function ExportJobsPage() {
                       </td>
                       <td className="py-2 px-3 font-mono">{j.progress_rows}{j.total_rows != null ? ` / ${j.total_rows}` : ""}</td>
                       <td className="py-2 px-3 font-mono">{j.result_bytes != null ? `${Math.max(1, Math.round(j.result_bytes / 1024))} KB` : "—"}</td>
+                      <td className="py-2 px-3 font-mono">
+                        {attempts}/{MAX_ATTEMPTS}
+                        {history.length > 0 && (
+                          <details className="mt-1 font-sans">
+                            <summary className="cursor-pointer text-muted-foreground">history</summary>
+                            <ul className="mt-1 space-y-1 max-w-xs">
+                              {history.map((h, i) => (
+                                <li key={i} className="break-words text-[11px] text-muted-foreground">
+                                  #{h.attempt ?? i + 1} {h.at ? new Date(h.at).toLocaleString() : ""} — {h.error ?? "no reason recorded"}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                      </td>
                       <td className="py-2 px-3 font-mono text-[11px]">
                         {link ? (
                           <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline hover:text-foreground">
@@ -205,15 +275,35 @@ function ExportJobsPage() {
                         ) : ((j.correlation_id ?? "—").slice(0, 8))}
                       </td>
                       <td className="py-2 px-3">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          disabled={j.status !== "complete"}
-                          onClick={() => void download(j)}
-                        >
-                          <Download className="w-3 h-3 mr-1" />Download
-                        </Button>
+                        <div className="flex flex-col gap-1 items-stretch">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            disabled={j.status !== "complete" || busy}
+                            onClick={() => void signedDownload(j)}
+                            title="Creates a single-use link that expires in 5 minutes"
+                          >
+                            {busy ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Link2 className="w-3 h-3 mr-1" />}Download
+                          </Button>
+                          {j.status === "failed" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs"
+                              disabled={busy || attempts >= MAX_ATTEMPTS}
+                              onClick={() => void retry(j)}
+                              title={attempts >= MAX_ATTEMPTS ? "Retry limit reached" : "Re-run this export with the same filters"}
+                            >
+                              <RotateCcw className="w-3 h-3 mr-1" />Retry
+                            </Button>
+                          )}
+                          {j.status === "complete" && (
+                            <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={busy} onClick={() => void download(j)}>
+                              <Download className="w-3 h-3 mr-1" />Direct
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
