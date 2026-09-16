@@ -17,6 +17,28 @@ function hostOf(value: string | null | undefined): string | null {
   try { return new URL(value).host; } catch { return null; }
 }
 
+/**
+ * True when the request targets the CSRF bootstrap server function.
+ * TanStack encodes the function id as base64url JSON (file + export) inside the
+ * `/_serverFn/<id>` path, so we decode candidate segments as well as matching
+ * the literal name and the `?fn=` query form.
+ */
+function isCsrfBootstrapRequest(url: URL): boolean {
+  const needle = "getCsrfToken";
+  if (url.pathname.includes(needle)) return true;
+  if (url.searchParams.get("fn")?.includes(needle)) return true;
+  for (const segment of url.pathname.split("/")) {
+    if (segment.length < 8) continue;
+    try {
+      const norm = segment.replace(/-/g, "+").replace(/_/g, "/");
+      const decoded = Buffer.from(norm, "base64").toString("utf8");
+      if (decoded.includes(needle) || decoded.includes("csrf.functions")) return true;
+    } catch { /* not base64 — ignore */ }
+  }
+  return false;
+}
+
+
 export const requireSameOrigin = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
     const request = getRequest();
