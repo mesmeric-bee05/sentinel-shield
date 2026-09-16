@@ -666,6 +666,8 @@ export type Database = {
           finished_at: string | null
           format: string
           id: string
+          notified_at: string | null
+          notify_email: string | null
           progress_rows: number
           requested_by: string
           result_bytes: number | null
@@ -693,6 +695,8 @@ export type Database = {
           finished_at?: string | null
           format?: string
           id?: string
+          notified_at?: string | null
+          notify_email?: string | null
           progress_rows?: number
           requested_by: string
           result_bytes?: number | null
@@ -720,6 +724,8 @@ export type Database = {
           finished_at?: string | null
           format?: string
           id?: string
+          notified_at?: string | null
+          notify_email?: string | null
           progress_rows?: number
           requested_by?: string
           result_bytes?: number | null
