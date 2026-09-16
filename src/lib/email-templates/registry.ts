@@ -9,7 +9,9 @@ export interface TemplateEntry {
 }
 
 import { template as bookingConfirmation } from "./booking-confirmation";
+import { template as exportJobStatus } from "./export-job-status";
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   "booking-confirmation": bookingConfirmation,
+  "export-job-status": exportJobStatus,
 };

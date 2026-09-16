@@ -17,6 +17,28 @@ function hostOf(value: string | null | undefined): string | null {
   try { return new URL(value).host; } catch { return null; }
 }
 
+/**
+ * True when the request targets the CSRF bootstrap server function.
+ * TanStack encodes the function id as base64url JSON (file + export) inside the
+ * `/_serverFn/<id>` path, so we decode candidate segments as well as matching
+ * the literal name and the `?fn=` query form.
+ */
+function isCsrfBootstrapRequest(url: URL): boolean {
+  const needle = "getCsrfToken";
+  if (url.pathname.includes(needle)) return true;
+  if (url.searchParams.get("fn")?.includes(needle)) return true;
+  for (const segment of url.pathname.split("/")) {
+    if (segment.length < 8) continue;
+    try {
+      const norm = segment.replace(/-/g, "+").replace(/_/g, "/");
+      const decoded = Buffer.from(norm, "base64").toString("utf8");
+      if (decoded.includes(needle) || decoded.includes("csrf.functions")) return true;
+    } catch { /* not base64 — ignore */ }
+  }
+  return false;
+}
+
+
 export const requireSameOrigin = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
     const request = getRequest();
@@ -54,14 +76,19 @@ export const verifyCsrfHeader = createMiddleware({ type: "function" }).server(
 
     const token = request.headers.get("x-csrf-token");
     // Route the special getCsrfToken bootstrap fn through — it is how the client
-    // acquires a token in the first place. Identified by URL path.
+    // acquires a token in the first place. TanStack encodes the server-fn id as
+    // a base64 JSON blob in the path, so the raw path never literally contains
+    // the export name: decode each path segment before matching, otherwise the
+    // bootstrap call itself is rejected and NO authenticated mutation can ever
+    // obtain a token (every booking / CHW action then fails with 403).
     const url = new URL(request.url);
-    if (url.pathname.includes("getCsrfToken") || url.searchParams.get("fn")?.includes("getCsrfToken")) {
+    if (isCsrfBootstrapRequest(url)) {
       return next();
     }
     if (!token) {
       throw new Response("csrf_missing", { status: 403 });
     }
+
 
     // Decode the bearer to get the sub without a full JWT verify — we only need
     // the userId for HMAC binding; auth-middleware still validates the token.
