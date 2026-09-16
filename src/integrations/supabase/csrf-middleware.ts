@@ -54,14 +54,19 @@ export const verifyCsrfHeader = createMiddleware({ type: "function" }).server(
 
     const token = request.headers.get("x-csrf-token");
     // Route the special getCsrfToken bootstrap fn through — it is how the client
-    // acquires a token in the first place. Identified by URL path.
+    // acquires a token in the first place. TanStack encodes the server-fn id as
+    // a base64 JSON blob in the path, so the raw path never literally contains
+    // the export name: decode each path segment before matching, otherwise the
+    // bootstrap call itself is rejected and NO authenticated mutation can ever
+    // obtain a token (every booking / CHW action then fails with 403).
     const url = new URL(request.url);
-    if (url.pathname.includes("getCsrfToken") || url.searchParams.get("fn")?.includes("getCsrfToken")) {
+    if (isCsrfBootstrapRequest(url)) {
       return next();
     }
     if (!token) {
       throw new Response("csrf_missing", { status: 403 });
     }
+
 
     // Decode the bearer to get the sub without a full JWT verify — we only need
     // the userId for HMAC binding; auth-middleware still validates the token.
