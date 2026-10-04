@@ -15,9 +15,11 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ForProvidersRouteImport } from './routes/for-providers'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppAdminRouteImport } from './routes/app.admin'
 import { Route as AppAppointmentsRouteImport } from './routes/app.appointments'
@@ -25,6 +27,7 @@ import { Route as AppBootstrapRouteImport } from './routes/app.bootstrap'
 import { Route as AppChwRouteImport } from './routes/app.chw'
 import { Route as AppDiscoverRouteImport } from './routes/app.discover'
 import { Route as AppProviderRouteImport } from './routes/app.provider'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicSecurityExportDownloadRouteImport } from './routes/api/public/security-export-download'
 import { Route as ApiPublicSecurityRetentionCleanupRouteImport } from './routes/api/public/security-retention-cleanup'
 import { Route as ApiPublicSecuritySyncRouteImport } from './routes/api/public/security-sync'
@@ -79,6 +82,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SecurityRoute = SecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -94,6 +102,12 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -128,6 +142,11 @@ const AppProviderRoute = AppProviderRouteImport.update({
   id: '/provider',
   path: '/provider',
   getParentRoute: () => AppRoute,
+} as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicSecurityExportDownloadRoute =
   ApiPublicSecurityExportDownloadRouteImport.update({
@@ -255,9 +274,11 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/for-providers': typeof ForProvidersRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/security': typeof SecurityRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
   '/app/bootstrap': typeof AppBootstrapRoute
@@ -265,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/security-export-download': typeof ApiPublicSecurityExportDownloadRoute
   '/api/public/security-retention-cleanup': typeof ApiPublicSecurityRetentionCleanupRoute
   '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
@@ -295,9 +317,11 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/for-providers': typeof ForProvidersRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/security': typeof SecurityRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
   '/app/bootstrap': typeof AppBootstrapRoute
@@ -305,6 +329,7 @@ export interface FileRoutesByTo {
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app': typeof AppIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/security-export-download': typeof ApiPublicSecurityExportDownloadRoute
   '/api/public/security-retention-cleanup': typeof ApiPublicSecurityRetentionCleanupRoute
   '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
@@ -337,9 +362,11 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/for-providers': typeof ForProvidersRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
   '/security': typeof SecurityRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/app/admin': typeof AppAdminRouteWithChildren
   '/app/appointments': typeof AppAppointmentsRoute
   '/app/bootstrap': typeof AppBootstrapRoute
@@ -347,6 +374,7 @@ export interface FileRoutesById {
   '/app/discover': typeof AppDiscoverRoute
   '/app/provider': typeof AppProviderRoute
   '/app/': typeof AppIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/security-export-download': typeof ApiPublicSecurityExportDownloadRoute
   '/api/public/security-retention-cleanup': typeof ApiPublicSecurityRetentionCleanupRoute
   '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
@@ -380,9 +408,11 @@ export interface FileRouteTypes {
     | '/contact'
     | '/for-providers'
     | '/login'
+    | '/mcp'
     | '/security'
     | '/signup'
     | '/sitemap.xml'
+    | '/.well-known/oauth-protected-resource'
     | '/app/admin'
     | '/app/appointments'
     | '/app/bootstrap'
@@ -390,6 +420,7 @@ export interface FileRouteTypes {
     | '/app/discover'
     | '/app/provider'
     | '/app/'
+    | '/.lovable/oauth/consent'
     | '/api/public/security-export-download'
     | '/api/public/security-retention-cleanup'
     | '/api/public/security-sync'
@@ -420,9 +451,11 @@ export interface FileRouteTypes {
     | '/contact'
     | '/for-providers'
     | '/login'
+    | '/mcp'
     | '/security'
     | '/signup'
     | '/sitemap.xml'
+    | '/.well-known/oauth-protected-resource'
     | '/app/admin'
     | '/app/appointments'
     | '/app/bootstrap'
@@ -430,6 +463,7 @@ export interface FileRouteTypes {
     | '/app/discover'
     | '/app/provider'
     | '/app'
+    | '/.lovable/oauth/consent'
     | '/api/public/security-export-download'
     | '/api/public/security-retention-cleanup'
     | '/api/public/security-sync'
@@ -461,9 +495,11 @@ export interface FileRouteTypes {
     | '/contact'
     | '/for-providers'
     | '/login'
+    | '/mcp'
     | '/security'
     | '/signup'
     | '/sitemap.xml'
+    | '/.well-known/oauth-protected-resource'
     | '/app/admin'
     | '/app/appointments'
     | '/app/bootstrap'
@@ -471,6 +507,7 @@ export interface FileRouteTypes {
     | '/app/discover'
     | '/app/provider'
     | '/app/'
+    | '/.lovable/oauth/consent'
     | '/api/public/security-export-download'
     | '/api/public/security-retention-cleanup'
     | '/api/public/security-sync'
@@ -503,9 +540,12 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   ForProvidersRoute: typeof ForProvidersRoute
   LoginRoute: typeof LoginRoute
+  McpRoute: typeof McpRoute
   SecurityRoute: typeof SecurityRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicSecurityExportDownloadRoute: typeof ApiPublicSecurityExportDownloadRoute
   ApiPublicSecurityRetentionCleanupRoute: typeof ApiPublicSecurityRetentionCleanupRoute
   ApiPublicSecuritySyncRoute: typeof ApiPublicSecuritySyncRoute
@@ -555,6 +595,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/security': {
       id: '/security'
       path: '/security'
@@ -574,6 +621,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -624,6 +678,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/provider'
       preLoaderRoute: typeof AppProviderRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/security-export-download': {
       id: '/api/public/security-export-download'
@@ -879,9 +940,13 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   ForProvidersRoute: ForProvidersRoute,
   LoginRoute: LoginRoute,
+  McpRoute: McpRoute,
   SecurityRoute: SecurityRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicSecurityExportDownloadRoute: ApiPublicSecurityExportDownloadRoute,
   ApiPublicSecurityRetentionCleanupRoute:
     ApiPublicSecurityRetentionCleanupRoute,
