@@ -18,7 +18,7 @@ export const Route = createFileRoute("/app/chw")({
       <Card className="p-8 text-center">
         <AlertTriangle className="w-8 h-8 mx-auto text-amber-600 mb-3" />
         <h2 className="font-medium text-lg">Couldn't load the CHW queue</h2>
-        <p className="text-sm text-muted-foreground mt-2">{error.message || "Unexpected error."}</p>
+        <p className="text-sm text-muted-foreground mt-2">{(error as Error)?.message || "Unexpected error."}</p>
         <Button onClick={reset} variant="outline" size="sm" className="mt-4">Try again</Button>
       </Card>
     </div>

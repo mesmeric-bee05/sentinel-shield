@@ -19,15 +19,23 @@ export const Route = createFileRoute("/login")({
     ],
     links: [{ rel: "canonical", href: "https://harmony-forge-nexus.lovable.app/login" }],
   }),
+  validateSearch: (s: Record<string, unknown>): { next?: string } => ({
+    next: typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//") ? s.next : undefined,
+  }),
   component: LoginPage,
 });
 
 function LoginPage() {
   const nav = useNavigate();
+  const { next } = Route.useSearch();
   const { user, roles, loading } = useAuth();
   const [pending, setPending] = useState(false);
 
-  useEffect(() => { if (!loading && user) nav({ to: primaryRoute(roles) }); }, [user, roles, loading, nav]);
+  useEffect(() => {
+    if (loading || !user) return;
+    if (next) window.location.href = next;
+    else nav({ to: primaryRoute(roles) });
+  }, [user, roles, loading, nav, next]);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -42,7 +50,7 @@ function LoginPage() {
   };
 
   const google = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
+    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + (next ?? "") } });
     if (error) toast.error(error.message);
   };
 
