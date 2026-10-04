@@ -1,15 +1,89 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Activity, Calendar, Stethoscope, Users } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { Activity, Calendar, ShieldCheck, Stethoscope, Users } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { getRetentionConfig, type RetentionRunRow, type RetentionSettingsRow } from "@/lib/security-retention.functions";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin")({
   head: () => ({ meta: [{ title: "Operations — ApexCare AI" }] }),
-  component: AdminOverview,
+  component: AdminLayout,
 });
+
+function AdminLayout() {
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const isIndex = path.replace(/\/$/, "") === "/app/admin";
+  return isIndex ? <AdminOverview /> : <Outlet />;
+}
+
+const DATASET_LABEL: Record<string, string> = {
+  security_export_audit: "Export audit log",
+  security_export_jobs: "Export jobs",
+};
+
+function RetentionSummaryCard() {
+  const getFn = useServerFn(getRetentionConfig);
+  const [state, setState] = useState<{ loading: boolean; error: string | null; settings: RetentionSettingsRow[]; runs: RetentionRunRow[] }>(
+    { loading: true, error: null, settings: [], runs: [] },
+  );
+  useEffect(() => {
+    getFn()
+      .then((r) => setState({ loading: false, error: r.error, settings: r.settings ?? [], runs: r.runs ?? [] }))
+      .catch((e) => setState({ loading: false, error: e instanceof Error ? e.message : "Failed to load", settings: [], runs: [] }));
+  }, [getFn]);
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-card mt-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-serif text-lg flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-accent" /> Data retention</h3>
+        <Link to="/app/admin/retention" className="text-sm text-primary font-medium">Manage retention →</Link>
+      </div>
+      {state.loading ? (
+        <p className="text-sm text-muted-foreground">Loading retention settings…</p>
+      ) : state.error ? (
+        <p className="text-sm text-destructive">{state.error === "Forbidden" ? "Insufficient permissions to view retention settings." : state.error}</p>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Current settings</div>
+            <ul className="space-y-2 text-sm">
+              {state.settings.map((s) => (
+                <li key={s.dataset} className="flex justify-between gap-4 border-b border-border pb-2">
+                  <span>{DATASET_LABEL[s.dataset] ?? s.dataset}</span>
+                  <span className="text-muted-foreground text-right">
+                    Rows {s.retention_days}d · files {s.payload_retention_days}d
+                    <br />
+                    <span className="text-xs">Last run: {s.last_run_at ? new Date(s.last_run_at).toLocaleString() : "never"}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Recent cleanups</div>
+            {state.runs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No cleanups have run yet.</p>
+            ) : (
+              <ul className="space-y-1 text-sm">
+                {state.runs.slice(0, 5).map((r) => (
+                  <li key={r.id} className="flex justify-between gap-4">
+                    <span>{new Date(r.created_at).toLocaleString()} · {DATASET_LABEL[r.dataset] ?? r.dataset}</span>
+                    <span className={r.error ? "text-destructive" : "text-muted-foreground"}>
+                      {r.error ? "Failed" : `${r.deleted_rows} deleted, ${r.cleared_payloads} cleared`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function AdminOverview() {
   const { roles } = useAuth();
