@@ -162,6 +162,7 @@ function AdminOverview() {
           </div>
         </div>
       </div>
+      <RetentionSummaryCard />
     </div>
   );
 }
