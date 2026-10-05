@@ -32,6 +32,7 @@ import { Route as ApiPublicSecurityExportDownloadRouteImport } from './routes/ap
 import { Route as ApiPublicSecurityRetentionCleanupRouteImport } from './routes/api/public/security-retention-cleanup'
 import { Route as ApiPublicSecuritySyncRouteImport } from './routes/api/public/security-sync'
 import { Route as AppAdminAuditRouteImport } from './routes/app.admin.audit'
+import { Route as AppAdminBookingsRouteImport } from './routes/app.admin.bookings'
 import { Route as AppAdminChwRouteImport } from './routes/app.admin.chw'
 import { Route as AppAdminChwQueueRouteImport } from './routes/app.admin.chw-queue'
 import { Route as AppAdminEmailDomainRouteImport } from './routes/app.admin.email-domain'
@@ -170,6 +171,11 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminBookingsRoute = AppAdminBookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminChwRoute = AppAdminChwRouteImport.update({
   id: '/chw',
   path: '/chw',
@@ -291,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/api/public/security-retention-cleanup': typeof ApiPublicSecurityRetentionCleanupRoute
   '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/bookings': typeof AppAdminBookingsRoute
   '/app/admin/chw': typeof AppAdminChwRoute
   '/app/admin/chw-queue': typeof AppAdminChwQueueRoute
   '/app/admin/email-domain': typeof AppAdminEmailDomainRoute
@@ -334,6 +341,7 @@ export interface FileRoutesByTo {
   '/api/public/security-retention-cleanup': typeof ApiPublicSecurityRetentionCleanupRoute
   '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/bookings': typeof AppAdminBookingsRoute
   '/app/admin/chw': typeof AppAdminChwRoute
   '/app/admin/chw-queue': typeof AppAdminChwQueueRoute
   '/app/admin/email-domain': typeof AppAdminEmailDomainRoute
@@ -379,6 +387,7 @@ export interface FileRoutesById {
   '/api/public/security-retention-cleanup': typeof ApiPublicSecurityRetentionCleanupRoute
   '/api/public/security-sync': typeof ApiPublicSecuritySyncRoute
   '/app/admin/audit': typeof AppAdminAuditRoute
+  '/app/admin/bookings': typeof AppAdminBookingsRoute
   '/app/admin/chw': typeof AppAdminChwRoute
   '/app/admin/chw-queue': typeof AppAdminChwQueueRoute
   '/app/admin/email-domain': typeof AppAdminEmailDomainRoute
@@ -425,6 +434,7 @@ export interface FileRouteTypes {
     | '/api/public/security-retention-cleanup'
     | '/api/public/security-sync'
     | '/app/admin/audit'
+    | '/app/admin/bookings'
     | '/app/admin/chw'
     | '/app/admin/chw-queue'
     | '/app/admin/email-domain'
@@ -468,6 +478,7 @@ export interface FileRouteTypes {
     | '/api/public/security-retention-cleanup'
     | '/api/public/security-sync'
     | '/app/admin/audit'
+    | '/app/admin/bookings'
     | '/app/admin/chw'
     | '/app/admin/chw-queue'
     | '/app/admin/email-domain'
@@ -512,6 +523,7 @@ export interface FileRouteTypes {
     | '/api/public/security-retention-cleanup'
     | '/api/public/security-sync'
     | '/app/admin/audit'
+    | '/app/admin/bookings'
     | '/app/admin/chw'
     | '/app/admin/chw-queue'
     | '/app/admin/email-domain'
@@ -714,6 +726,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/app/admin/bookings': {
+      id: '/app/admin/bookings'
+      path: '/bookings'
+      fullPath: '/app/admin/bookings'
+      preLoaderRoute: typeof AppAdminBookingsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/app/admin/chw': {
       id: '/app/admin/chw'
       path: '/chw'
@@ -865,6 +884,7 @@ const AppAdminNotificationsRouteWithChildren =
 
 interface AppAdminRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
+  AppAdminBookingsRoute: typeof AppAdminBookingsRoute
   AppAdminChwRoute: typeof AppAdminChwRoute
   AppAdminChwQueueRoute: typeof AppAdminChwQueueRoute
   AppAdminEmailDomainRoute: typeof AppAdminEmailDomainRoute
@@ -886,6 +906,7 @@ interface AppAdminRouteChildren {
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
+  AppAdminBookingsRoute: AppAdminBookingsRoute,
   AppAdminChwRoute: AppAdminChwRoute,
   AppAdminChwQueueRoute: AppAdminChwQueueRoute,
   AppAdminEmailDomainRoute: AppAdminEmailDomainRoute,
