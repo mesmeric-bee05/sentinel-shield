@@ -5,6 +5,7 @@
 - [x] Export jobs page: presets, retry, signed download
 - [ ] Sender domain + export completion/failure emails — blocked: user must set up an email domain they own
 - [ ] Booking confirmation email — blocked on the same email domain
-- [ ] Live findings export end-to-end check — blocked: no account has the admin role yet
+- [x] Live findings export end-to-end check (verified: signed link, 0 live formula cells)
 - [ ] Admin alert emails for new bookings and security-sync spikes — blocked on email domain
-- [ ] Grant admin role to the user — blocked: user has no account under their Lovable email; needs the sign-in email to use
+- [x] Admin role granted to alvo4breezy@gmail.com
+- [x] Bookings summary card on Operations dashboard
