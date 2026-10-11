@@ -6,6 +6,44 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { getRetentionConfig, type RetentionRunRow, type RetentionSettingsRow } from "@/lib/security-retention.functions";
+import { getBookingSummary, type BookingSummary } from "@/lib/admin-bookings-summary.functions";
+
+function BookingsSummaryCard({ summary }: { summary: BookingSummary | null }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-card mt-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-serif text-lg flex items-center gap-2"><Calendar className="w-5 h-5 text-accent" /> New bookings</h3>
+        <Link to="/app/admin/bookings" className="text-sm text-primary font-medium">View all bookings →</Link>
+      </div>
+      {!summary ? (
+        <p className="text-sm text-muted-foreground">Loading bookings…</p>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">Booked today</span><span className="font-serif text-xl">{summary.createdToday}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Next 7 days</span><span className="font-serif text-xl">{summary.upcoming7d}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Cancelled today</span><span className="font-serif text-xl">{summary.cancelledToday}</span></div>
+          </div>
+          <div className="md:col-span-2">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Most recent</div>
+            {summary.recent.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No bookings yet.</p>
+            ) : (
+              <ul className="space-y-1 text-sm">
+                {summary.recent.map((b) => (
+                  <li key={b.id} className="flex justify-between gap-4 border-b border-border/50 pb-1">
+                    <span>{b.patient_name ?? "Patient"} · {b.provider_name ?? "Provider"}</span>
+                    <span className="text-muted-foreground">{new Date(b.starts_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} · <span className="capitalize">{b.status.replace("_", " ")}</span></span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin")({
@@ -88,6 +126,19 @@ function RetentionSummaryCard() {
 function AdminOverview() {
   const { roles } = useAuth();
   const [counts, setCounts] = useState({ appts: 0, providers: 0, today: 0 });
+  const summaryFn = useServerFn(getBookingSummary);
+  const [summary, setSummary] = useState<BookingSummary | null>(null);
+  const isAdmin = roles.includes("admin");
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const load = () => summaryFn().then((r) => setSummary(r.summary)).catch(() => {});
+    void load();
+    const ch = supabase.channel("admin-booking-summary")
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => void load())
+      .subscribe();
+    return () => { void supabase.removeChannel(ch); };
+  }, [isAdmin, summaryFn]);
 
   useEffect(() => {
     (async () => {
@@ -114,11 +165,7 @@ function AdminOverview() {
     );
   }
 
-  const trend = Array.from({ length: 7 }, (_, i) => ({
-    day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i],
-    bookings: Math.floor(40 + Math.random() * 60),
-    completed: Math.floor(30 + Math.random() * 50),
-  }));
+  const trend = summary?.series ?? [];
   const heat = ["8a", "10a", "12p", "2p", "4p", "6p"].map((h) => ({ hour: h, load: Math.floor(40 + Math.random() * 55) }));
 
   return (
@@ -162,6 +209,7 @@ function AdminOverview() {
           </div>
         </div>
       </div>
+      <BookingsSummaryCard summary={summary} />
       <RetentionSummaryCard />
     </div>
   );
