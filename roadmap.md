@@ -9,3 +9,7 @@
 - [ ] Admin alert emails for new bookings and security-sync spikes — blocked on email domain
 - [x] Admin role granted to alvo4breezy@gmail.com
 - [x] Bookings summary card on Operations dashboard
+- [x] Admin pages crashing on the preview link (CSRF bootstrap broke in production builds) — fixed
+- [x] Typed admin addresses land on the right page
+- [x] Resend email page opens on its own (was hidden behind Notifications)
+- [x] Security re-scan + regression checks for the Oct 13 fixes

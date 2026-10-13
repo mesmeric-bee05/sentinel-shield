@@ -77,3 +77,6 @@ jobs:
       - name: Export job + backfill regression
         run: bun run test:export-jobs
 
+
+      - name: Oct 13 security fix regressions
+        run: bun run test:oct13-fixes

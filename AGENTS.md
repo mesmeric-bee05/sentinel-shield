@@ -1,0 +1,2 @@
+- The `/app` workspace layout is `ssr: false` — the session lives in browser storage, so a server-side gate bounces typed URLs.
+- CSRF bootstrap is identified by `serverFnMeta.name/filename`, never by the `/_serverFn/<id>` path — production ids are opaque hashes.
