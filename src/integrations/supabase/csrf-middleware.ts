@@ -46,14 +46,17 @@ export const requireSameOrigin = createMiddleware({ type: "function" }).server(
     const method = request.method.toUpperCase();
     if (!MUTATING.has(method)) return next();
 
-    const requestHost = request.headers.get("host");
+    // Behind the hosting proxy the Host header can be the internal worker host;
+    // the public host the browser used arrives in x-forwarded-host.
+    const forwarded = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() || null;
+    const candidates = [forwarded, request.headers.get("host"), hostOf(request.url)].filter(Boolean) as string[];
     const originHost = hostOf(request.headers.get("origin")) ?? hostOf(request.headers.get("referer"));
 
     // If no origin/referer at all (e.g. server-to-server fetch), allow — the
     // bearer-token check on auth middleware will still gate sensitive ops.
     if (!originHost) return next();
 
-    if (!requestHost || originHost !== requestHost) {
+    if (!candidates.includes(originHost)) {
       throw new Response("Forbidden: cross-origin request rejected", { status: 403 });
     }
     return next();
@@ -65,7 +68,7 @@ export const requireSameOrigin = createMiddleware({ type: "function" }).server(
 // (i.e. an authenticated user session). Public read-only calls and endpoints
 // that do not require auth (bootstrap, sign-in helpers) are unaffected.
 export const verifyCsrfHeader = createMiddleware({ type: "function" }).server(
-  async ({ next }) => {
+  async ({ next, serverFnMeta }) => {
     const request = getRequest();
     if (!request) return next();
     const method = request.method.toUpperCase();
@@ -81,8 +84,12 @@ export const verifyCsrfHeader = createMiddleware({ type: "function" }).server(
     // the export name: decode each path segment before matching, otherwise the
     // bootstrap call itself is rejected and NO authenticated mutation can ever
     // obtain a token (every booking / CHW action then fails with 403).
+    // Production builds hash server-function ids, so the URL never names the
+    // function. The compiler-provided metadata is the reliable signal.
+    const meta = serverFnMeta as { name?: string; filename?: string } | undefined;
+    const isBootstrapFn = meta?.name === "getCsrfToken" && (meta.filename ?? "").includes("csrf.functions");
     const url = new URL(request.url);
-    if (isCsrfBootstrapRequest(url)) {
+    if (isBootstrapFn || isCsrfBootstrapRequest(url)) {
       return next();
     }
     if (!token) {
