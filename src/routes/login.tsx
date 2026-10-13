@@ -4,21 +4,10 @@ import { toast } from "sonner";
 import { Activity, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, primaryRoute } from "@/lib/auth";
+import { safeNext } from "@/lib/safe-next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-// Only same-origin relative paths: one leading "/", no "//", no backslashes,
-// no control characters, and must resolve to this origin.
-function safeNext(v: unknown): string | undefined {
-  if (typeof v !== "string" || v.length > 512) return undefined;
-  if (!/^\/(?![\/\\])/.test(v) || /[\\\u0000-\u001f]/.test(v)) return undefined;
-  try {
-    const u = new URL(v, "https://apexcare.invalid");
-    if (u.origin !== "https://apexcare.invalid") return undefined;
-    return u.pathname + u.search + u.hash;
-  } catch { return undefined; }
-}
 
 export const Route = createFileRoute("/login")({
   head: () => ({
