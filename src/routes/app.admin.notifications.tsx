@@ -1,3 +1,4 @@
+import { sanitizeCell } from "@/lib/exports";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Bell, ChevronLeft, ChevronRight, Download, Filter, Loader2, Mail, MessageSquare, Search, ShieldAlert } from "lucide-react";
@@ -93,7 +94,7 @@ function NotificationsAuditPage() {
         row.recipient?.phone_e164 ?? "",
         row.entity_id ?? "",
         JSON.stringify(row.meta ?? {}),
-      ].map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      ].map((c) => `"${sanitizeCell(c).replace(/"/g, '""')}"`).join(","))
     ).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);

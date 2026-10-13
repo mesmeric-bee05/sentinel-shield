@@ -82,6 +82,10 @@ export const listAssignments = createServerFn({ method: "POST" })
       const patientIds = Array.from(new Set((appts ?? []).map((a) => a.patient_id)));
       if (patientIds.length === 0) return { assignments: [], error: null as string | null };
       q = q.in("patient_id", patientIds);
+    } else if (!isAdmin) {
+      // Community workers only ever see assignments routed to them.
+      if (!meWorker) return { assignments: [], error: "forbidden" as const };
+      q = q.eq("chw_id", meWorker.id);
     }
     const { data: rows, error } = await q;
     return { assignments: rows ?? [], error: error?.message ?? null };
@@ -115,6 +119,16 @@ export const dispatchAssignment = createServerFn({ method: "POST" })
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     const { data: isProv } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "provider" });
     if (!isAdmin && !isProv) return { ok: false, error: "forbidden", assignment: null };
+    if (!isAdmin) {
+      // Providers may only dispatch for patients they have an appointment with.
+      const { data: prov } = await supabaseAdmin
+        .from("providers").select("id").eq("user_id", context.userId).maybeSingle();
+      if (!prov) return { ok: false, error: "forbidden", assignment: null };
+      const { count } = await supabaseAdmin
+        .from("appointments").select("id", { count: "exact", head: true })
+        .eq("provider_id", prov.id).eq("patient_id", data.patient_id);
+      if (!count) return { ok: false, error: "forbidden", assignment: null };
+    }
 
     // Auto-route: pick nearest active CHW if none preferred and we have coords.
     let chwId = data.preferred_chw_id ?? null;
