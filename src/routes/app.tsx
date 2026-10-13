@@ -6,9 +6,13 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app")({
-  beforeLoad: async () => {
+  // The session lives in browser storage, so the server cannot see it. Running
+  // this gate during server rendering bounced every typed /app/* address to
+  // /login, which then forwarded to /app. Render the workspace in the browser.
+  ssr: false,
+  beforeLoad: async ({ location }) => {
     const { data } = await supabase.auth.getSession();
-    if (!data.session) throw redirect({ to: "/login" });
+    if (!data.session) throw redirect({ to: "/login", search: { next: location.href } });
   },
   component: AppShell,
 });

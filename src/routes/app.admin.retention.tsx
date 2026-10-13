@@ -67,9 +67,9 @@ function RetentionPage() {
       if (d) { setDenied(d); setSettings([]); setRuns([]); }
       else {
         setDenied(null);
-        setSettings(res.settings);
-        setRuns(res.runs);
-        setDraft(Object.fromEntries(res.settings.map((s) => [s.dataset, { retention: String(s.retention_days), payload: String(s.payload_retention_days) }])));
+        setSettings(res?.settings ?? []);
+        setRuns(res?.runs ?? []);
+        setDraft(Object.fromEntries((res?.settings ?? []).map((s) => [s.dataset, { retention: String(s.retention_days), payload: String(s.payload_retention_days) }])));
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not load retention settings");

@@ -52,7 +52,7 @@ function ChwHomePage() {
     },
   });
 
-  const empty = !list.isLoading && (list.data?.assignments.length ?? 0) === 0;
+  const empty = !list.isLoading && (list.data?.assignments?.length ?? 0) === 0;
   const error = list.data && "error" in list.data ? list.data.error : null;
 
   return (
@@ -71,7 +71,7 @@ function ChwHomePage() {
             You don't have any CHW assignments. If you're not part of the Community Health Worker program, an admin can enroll you from the CHW mesh page.
           </Card>
         )}
-        {list.data?.assignments.map((a) => (
+        {(list.data?.assignments ?? []).map((a) => (
           <AssignmentRow
             key={a.id}
             assignment={a}

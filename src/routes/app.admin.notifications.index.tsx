@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { listNotificationEvents } from "@/lib/notifications.functions";
 import { PageHeader } from "./app";
 
-export const Route = createFileRoute("/app/admin/notifications")({
+export const Route = createFileRoute("/app/admin/notifications/")({
   beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) throw redirect({ to: "/login" });
