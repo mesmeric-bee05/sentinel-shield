@@ -80,3 +80,6 @@ jobs:
 
       - name: Oct 13 security fix regressions
         run: bun run test:oct13-fixes
+
+      - name: Nov 1 security fix regressions
+        run: bun run test:nov1-fixes

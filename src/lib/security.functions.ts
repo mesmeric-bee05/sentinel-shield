@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildPagination, type ScanDiffEntry, type ScanDiffResponse } from "@/lib/security-contracts";
 import { emitSecurityEventAsync, newCorrelationId } from "@/lib/telemetry";
 import { EXPORT_DATASET_VALUES, type ExportDataset, type SecurityExportJob } from "@/lib/security-export-datasets";
+import { ilikeTerm } from "@/lib/postgrest-search";
 
 export const listSecurityFindings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -268,7 +269,7 @@ export const exportSecurityFindings = createServerFn({ method: "POST" })
     if (data.status) q = q.eq("status", data.status);
     if (data.from) q = q.gte("last_seen_at", data.from);
     if (data.to) q = q.lte("last_seen_at", data.to);
-    if (data.search) q = q.or(`title.ilike.%${data.search}%,internal_id.ilike.%${data.search}%,resource.ilike.%${data.search}%`);
+    if (data.search) { const term = ilikeTerm(data.search); if (term) q = q.or(`title.ilike.%${term}%,internal_id.ilike.%${term}%,resource.ilike.%${term}%`); }
 
     const { data: rows, count, error } = await q;
     if (error) {
@@ -305,7 +306,7 @@ export const exportSecurityFindingAudit = createServerFn({ method: "POST" })
     if (data.status) q = q.eq("resolution", data.status);
     if (data.from) q = q.gte("created_at", data.from);
     if (data.to) q = q.lte("created_at", data.to);
-    if (data.search) q = q.or(`internal_id.ilike.%${data.search}%,scanner_name.ilike.%${data.search}%,notes.ilike.%${data.search}%`);
+    if (data.search) { const term = ilikeTerm(data.search); if (term) q = q.or(`internal_id.ilike.%${term}%,scanner_name.ilike.%${term}%,notes.ilike.%${term}%`); }
 
     const { data: rows, count, error } = await q;
     if (error) {

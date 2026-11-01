@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { listAuditEvents, distinctAuditFacets } from "@/lib/audit.functions";
+import { csvEscape } from "@/lib/exports";
 import { PageHeader } from "./app";
 
 export const Route = createFileRoute("/app/admin/audit")({
@@ -73,7 +74,7 @@ function AuditPage() {
     }});
     setExporting(false);
     const headers = ["timestamp","actor_email","actor_id","entity","entity_id","action","meta"];
-    const csv = [headers.join(",")].concat(
+    const csv = [headers.map(csvEscape).join(",")].concat(
       (r.items as Row[]).map((row) => [
         row.created_at,
         row.actor?.email ?? "",
@@ -82,7 +83,7 @@ function AuditPage() {
         row.entity_id ?? "",
         row.action,
         JSON.stringify(row.meta ?? {}),
-      ].map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      ].map(csvEscape).join(","))
     ).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
