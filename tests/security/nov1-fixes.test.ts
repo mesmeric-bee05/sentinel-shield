@@ -15,7 +15,7 @@ check("plus prefix neutralized", csvEscape("+SUM(A1)").startsWith("'"));
 check("minus prefix neutralized", csvEscape("-1+1").startsWith("'"));
 const audit = readFileSync("src/routes/app.admin.audit.tsx", "utf8");
 check("audit export uses csvEscape", audit.includes(".map(csvEscape)"));
-check("audit export no raw quoting", !audit.includes('replace(/"/g, \'\\'\\"\\'\')'));
+check("audit export no raw quoting", !audit.includes(".replace(/\"/g"));
 
 // 2. Search terms cannot alter PostgREST or() filters.
 check("strips filter syntax", ilikeTerm("a),b),id.eq.1") === "a  b  id.eq.1");
