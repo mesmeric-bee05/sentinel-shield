@@ -25,6 +25,7 @@ function Bootstrap() {
   const [loading, setLoading] = useState(true);
   const [adminCount, setAdminCount] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [setupKey, setSetupKey] = useState("");
 
   useEffect(() => {
     status({}).then((r) => { setAdminCount(r.adminCount); setLoading(false); });
@@ -32,7 +33,7 @@ function Bootstrap() {
 
   const claim = async () => {
     setBusy(true);
-    const r = await bootstrap({});
+    const r = await bootstrap({ data: { setupKey } });
     setBusy(false);
     if (!r.ok) return toast.error(r.error || "Could not bootstrap");
     toast.success("You're now the platform admin");
