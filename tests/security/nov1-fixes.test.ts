@@ -10,7 +10,7 @@ function check(name: string, ok: boolean) {
 }
 
 // 1. Audit log CSV export neutralizes formulas in every cell, headers included.
-check("formula email becomes text", csvEscape("=HYPERLINK(\"http://x\",\"y\")").startsWith("'"));
+check("formula email becomes text", /^"?'/.test(csvEscape("=HYPERLINK(\"http://x\",\"y\")")));
 check("plus prefix neutralized", csvEscape("+SUM(A1)").startsWith("'"));
 check("minus prefix neutralized", csvEscape("-1+1").startsWith("'"));
 const audit = readFileSync("src/routes/app.admin.audit.tsx", "utf8");

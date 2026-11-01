@@ -7,7 +7,7 @@
  */
 export function ilikeTerm(raw: string): string {
   return raw
-    .replace(/[,()"\\]/g, " ")
+    .replace(/[,()"'\\]/g, " ")
     .replace(/[%_]/g, (m) => `\\${m}`)
     .trim()
     .slice(0, 120);
