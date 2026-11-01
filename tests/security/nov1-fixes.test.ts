@@ -40,8 +40,10 @@ check("bootstrap page collects setup key", bootstrapPage.includes("setupKey"));
 check("bootstrap page sends setup key", bootstrapPage.includes("setupKey }"));
 
 // 4. Migration: revokes the RPC from clients and guards provider rating.
-const migrations = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql"));
-const nov1 = migrations.map((f) => `supabase/migrations/${f}`)
+const migrationDirs = ["supabase/migrations", "drizzle/migrations"];
+const nov1 = migrationDirs.flatMap((d) => {
+  try { return readdirSync(d).filter((f) => f.endsWith(".sql")).map((f) => `${d}/${f}`); } catch { return []; }
+})
   .map((p) => ({ p, sql: readFileSync(p, "utf8") }))
   .find((m) => m.sql.includes("providers_guard_rating"));
 check("rating-guard migration exists", nov1 !== undefined);
