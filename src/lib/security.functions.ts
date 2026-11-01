@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildPagination, type ScanDiffEntry, type ScanDiffResponse } from "@/lib/security-contracts";
 import { emitSecurityEventAsync, newCorrelationId } from "@/lib/telemetry";
 import { EXPORT_DATASET_VALUES, type ExportDataset, type SecurityExportJob } from "@/lib/security-export-datasets";
+import { ilikeTerm } from "@/lib/postgrest-search";
 
 export const listSecurityFindings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
