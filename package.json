@@ -27,7 +27,8 @@
     "test:export-rbac": "bun run tests/security/export-rbac.test.ts",
     "test:admin-diff-e2e": "bun run tests/security/admin-diff-e2e.test.ts",
     "test:export-jobs": "bun run tests/security/export-jobs.test.ts",
-    "test:oct13-fixes": "bun run tests/security/oct13-fixes.test.ts"
+    "test:oct13-fixes": "bun run tests/security/oct13-fixes.test.ts",
+    "test:nov1-fixes": "bun run tests/security/nov1-fixes.test.ts"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
