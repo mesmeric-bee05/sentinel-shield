@@ -53,8 +53,16 @@ function Bootstrap() {
           </>
         ) : (
           <>
-            <p className="text-sm text-muted-foreground mt-3">No administrators exist yet. As the first signed-in user, you can claim the founding admin role. This action is recorded permanently in the audit log.</p>
-            <Button className="mt-6 w-full" onClick={claim} disabled={busy}>
+            <p className="text-sm text-muted-foreground mt-3">No administrators exist yet. Enter the platform setup key to claim the founding admin role. This action is recorded permanently in the audit log.</p>
+            <input
+              type="password"
+              value={setupKey}
+              onChange={(e) => setSetupKey(e.target.value)}
+              placeholder="Platform setup key"
+              className="mt-4 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              autoComplete="off"
+            />
+            <Button className="mt-4 w-full" onClick={claim} disabled={busy || setupKey.trim().length < 8}>
               {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
               Claim founding admin
             </Button>
