@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { ilikeTerm } from "@/lib/postgrest-search";
 
 const RoleEnum = z.enum(["patient", "provider", "admin"]);
 
@@ -17,13 +18,34 @@ export const requestRole = createServerFn({ method: "POST" })
     return { ok: true, error: null };
   });
 
-// Bootstrap first admin: SQL fn validates that no admins exist.
+// Bootstrap first admin: the caller must know the server-side setup key and
+// zero admins may exist. The DB RPC is revoked from clients; this path runs
+// privileged inserts only after both checks pass.
 export const bootstrapFirstAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.rpc("bootstrap_first_admin", { _user_id: context.userId });
+  .inputValidator((d) => z.object({ setupKey: z.string().min(8).max(200) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const expected = process.env["ADMIN_BOOTSTRAP_SECRET"] ?? "";
+    if (!expected || data.setupKey !== expected) {
+      return { ok: false, error: "Invalid setup key" };
+    }
+    const { count } = await supabaseAdmin
+      .from("user_roles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "admin");
+    if ((count ?? 0) > 0) return { ok: false, error: "An admin already exists" };
+    const { error } = await supabaseAdmin
+      .from("user_roles")
+      .upsert({ user_id: context.userId, role: "admin" }, { onConflict: "user_id,role" });
     if (error) return { ok: false, error: error.message };
-    return { ok: data === true, error: data ? null : "An admin already exists" };
+    await supabaseAdmin.from("audit_events").insert({
+      actor_id: context.userId,
+      action: "role.bootstrap_admin",
+      entity: "user_roles",
+      entity_id: context.userId,
+      meta: { role: "admin", via: "bootstrap" },
+    });
+    return { ok: true, error: null };
   });
 
 export const getSystemRoleStatus = createServerFn({ method: "GET" })
@@ -108,7 +130,8 @@ export const searchUsers = createServerFn({ method: "POST" })
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) return { items: [], error: "Forbidden" };
     let q = supabaseAdmin.from("profiles").select("id, email, full_name").limit(25);
-    if (data.q.trim()) q = q.or(`email.ilike.%${data.q}%,full_name.ilike.%${data.q}%`);
+    const term = ilikeTerm(data.q);
+    if (term) q = q.or(`email.ilike.%${term}%,full_name.ilike.%${term}%`);
     const { data: profiles, error } = await q;
     if (error) return { items: [], error: error.message };
     const ids = (profiles ?? []).map((p) => p.id);
