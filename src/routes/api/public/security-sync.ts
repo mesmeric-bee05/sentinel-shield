@@ -106,7 +106,33 @@ export const Route = createFileRoute("/api/public/security-sync")({
               error: opts.error,
             },
           });
+
+          if (opts.status !== "accepted") void maybeSpikeAlert();
         };
+
+
+        // Spike alert: on any non-accepted attempt, check the failure count in
+        // the configured window and email the admin when it crosses the
+        // threshold. Idempotency keys throttle to one alert per window bucket.
+        const maybeSpikeAlert = async () => {
+          try {
+            const settings = await supabaseAdmin
+              .from("admin_alert_settings")
+              .select("spike_window_minutes, spike_threshold, alert_email")
+              .eq("id", 1)
+              .maybeSingle();
+            if (!settings.data?.alert_email) return;
+            const { maybeSendSyncSpikeAlert } = await import("@/lib/admin-alerts.server");
+            await maybeSendSyncSpikeAlert({
+              admin: supabaseAdmin as never,
+              windowMinutes: settings.data.spike_window_minutes,
+              threshold: settings.data.spike_threshold,
+            });
+          } catch {
+            // Alerting must never change the endpoint's response.
+          }
+        };
+
 
         const secret = process.env.SECURITY_SYNC_SECRET;
         if (!secret) {
