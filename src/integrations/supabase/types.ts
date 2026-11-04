@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_alert_settings: {
+        Row: {
+          alert_email: string
+          id: number
+          spike_threshold: number
+          spike_window_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          alert_email?: string
+          id?: number
+          spike_threshold?: number
+          spike_window_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          alert_email?: string
+          id?: number
+          spike_threshold?: number
+          spike_window_minutes?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           ai_summary: string | null
