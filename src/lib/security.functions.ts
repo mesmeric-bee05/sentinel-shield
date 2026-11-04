@@ -536,6 +536,27 @@ export const startSecurityExportJob = createServerFn({ method: "POST" })
       filters,
     });
 
+    // Best-effort admin email when the job finishes or fails.
+    try {
+      const { notifyExportOutcome } = await import("@/lib/export-notify.server");
+      const settings = await supabaseAdmin.from("admin_alert_settings").select("alert_email").eq("id", 1).maybeSingle();
+      if (settings.data?.alert_email) {
+        await notifyExportOutcome({
+          admin: supabaseAdmin as never,
+          jobId: job.id,
+          actorId: context.userId,
+          recipient: settings.data.alert_email,
+          dataset: data.dataset,
+          format: data.format,
+          status: result.status,
+          rows: result.rowCount,
+          error: result.error,
+        });
+      }
+    } catch {
+      /* notification failures never affect the job outcome */
+    }
+
     emitSecurityEventAsync({
       correlationId,
       event: result.status === "complete" ? "security.export.completed" : "security.export.failed",

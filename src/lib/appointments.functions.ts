@@ -216,6 +216,23 @@ async function sendBookingNotifications(a: NotifyArgs): Promise<void> {
     });
   }
 
+  // ---- Admin alert: every new booking notifies the admin address (best-effort). ----
+  try {
+    const { notifyAdminBooking } = await import("@/lib/admin-alerts.server");
+    void notifyAdminBooking({
+      admin: supabaseAdmin as never,
+      appointmentId: a.appointmentId,
+      patientName: profile.full_name ?? "",
+      patientEmail: profile.email ?? "",
+      providerName: a.providerName,
+      whenLocal: a.startsAt.toLocaleString(),
+      channel: a.channel,
+      reason: a.reason ?? "",
+    });
+  } catch {
+    // Alerting must never break the booking flow.
+  }
+
   // ---- SMS via Twilio connector (only if user opted in AND requested AND we have credentials). ----
   if (a.smsRequested && profile.sms_opt_in && profile.phone_e164) {
     const lovableKey = process.env.LOVABLE_API_KEY;
