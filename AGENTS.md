@@ -1,2 +1,5 @@
 - The `/app` workspace layout is `ssr: false` — the session lives in browser storage, so a server-side gate bounces typed URLs.
 - CSRF bootstrap is identified by `serverFnMeta.name/filename`, never by the `/_serverFn/<id>` path — production ids are opaque hashes.
+- First-admin bootstrap requires the `ADMIN_BOOTSTRAP_SECRET` secret and runs only through the privileged server function; the `bootstrap_first_admin` SQL RPC is revoked from all client roles — any signed-in user must never be able to self-promote.
+- Embed caller-supplied search text in PostgREST filters only via `ilikeTerm()` from `src/lib/postgrest-search.ts` — raw interpolation into `or()` lets callers alter filter meaning.
+- `providers.rating` is admin/platform-managed: a BEFORE UPDATE trigger rejects rating changes by non-admin authenticated users, so no client-side provider save may set `rating`.
