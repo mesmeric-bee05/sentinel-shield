@@ -106,7 +106,10 @@ export const Route = createFileRoute("/api/public/security-sync")({
               error: opts.error,
             },
           });
+
+          if (opts.status !== "accepted") void maybeSpikeAlert();
         };
+
 
         // Spike alert: on any non-accepted attempt, check the failure count in
         // the configured window and email the admin when it crosses the
