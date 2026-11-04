@@ -31,11 +31,11 @@ const SyncSpikeAlertEmail = ({
         </Section>
         <Heading style={h1}>Security sync spike detected</Heading>
         <Text style={text}>
-          The findings-sync endpoint logged <strong>{failiesOr(failures)} failed attempts</strong> in the last {windowMinutes} minutes (threshold {threshold ?? "—"}). Someone may be probing the endpoint without a valid signing secret.
+          The findings-sync endpoint logged <strong>{fmtFailures(failures)} failed attempts</strong> in the last {windowMinutes} minutes (threshold {threshold ?? "—"}). Someone may be probing the endpoint without a valid signing secret.
         </Text>
         <Section style={card}>
           <KV label="Window" value={`${windowMinutes} minutes`} />
-          <KV label="Failed attempts" value={String(failiesOr(failures))} />
+          <KV label="Failed attempts" value={String(fmtFailures(failures))} />
           {breakdown ? <KV label="By status" value={breakdown} /> : null}
           {lastSourceIp ? <KV label="Latest source" value={lastSourceIp} /> : null}
           {lastError ? <KV label="Latest error" value={lastError} /> : null}
@@ -52,7 +52,7 @@ const SyncSpikeAlertEmail = ({
   </Html>
 );
 
-function failiesOr(v: number | undefined): string {
+function fmtFailures(v: number | undefined): string {
   return typeof v === "number" ? String(v) : "?";
 }
 
